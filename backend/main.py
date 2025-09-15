@@ -78,7 +78,7 @@ async def _handle_grab_request(request: dict) -> None:
                 {
                     "type": "grab_result",
                     "status": "fail",
-                    "reason": "Ticket sale not started",
+                    "reason": "抢票尚未开始",
                 }
             )
             return
@@ -115,13 +115,13 @@ async def _handle_grab_request(request: dict) -> None:
                 {"type": "grab_result", "status": "success", "order_id": order.id}
             )
         else:
-            reason = "Tickets sold out"
+            reason = "座位已满"
             if not ticket_type or ticket_type.available_qty <= 0:
-                reason = "Tickets sold out"
+                reason = "座位已满"
             elif user is None:
-                reason = "User not found"
+                reason = "用户不存在"
             elif user.energy_coins < int(ticket_type.price):
-                reason = "Insufficient energy coins"
+                reason = "能量币不足"
             alternatives = (
                 db.query(models.TicketType)
                 .filter(
@@ -234,10 +234,12 @@ async def event_ws(websocket: WebSocket, event_id: int, token: str) -> None:
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     token_data = auth.decode_access_token(token)
     if token_data is None or token_data.username is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的令牌"
+        )
     user = db.query(models.User).filter(models.User.username == token_data.username).first()
     if user is None:
-        raise HTTPException(status_code=400, detail="User not found")
+        raise HTTPException(status_code=400, detail="用户不存在")
     return user
 
 
@@ -245,7 +247,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.username == user.username).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail="用户名已被注册")
     hashed_password = auth.get_password_hash(user.password)
     db_user = models.User(
         username=user.username,
@@ -262,7 +264,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        raise HTTPException(status_code=400, detail="用户名或密码错误")
     access_token = auth.create_access_token(
         data={"sub": user.username}, expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
@@ -287,7 +289,7 @@ def admin_update_coins(
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="用户不存在")
     user.energy_coins = data.energy_coins
     db.commit()
     db.refresh(user)
@@ -302,7 +304,7 @@ def admin_reset_password(
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="用户不存在")
     user.hashed_password = auth.get_password_hash("123456")
     db.commit()
     db.refresh(user)
@@ -331,7 +333,7 @@ async def create_event(
     current_user: models.User = Depends(get_current_user),
 ):
     if current_user.username != "admin":
-        raise HTTPException(status_code=403, detail="Only admin can create events")
+        raise HTTPException(status_code=403, detail="只有管理员可以创建活动")
     image_path = None
     seat_map_path = None
     if image:
@@ -387,7 +389,7 @@ async def create_event(
 def read_event(event_id: int, db: Session = Depends(get_db)):
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="活动不存在")
     return event
 
 
@@ -408,10 +410,10 @@ async def update_event(
     current_user: models.User = Depends(get_current_user),
 ):
     if current_user.username != "admin":
-        raise HTTPException(status_code=403, detail="Only admin can update events")
+        raise HTTPException(status_code=403, detail="只有管理员可以更新活动")
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="活动不存在")
     if image:
         os.makedirs("static", exist_ok=True)
         ext = os.path.splitext(image.filename)[1]
@@ -462,9 +464,9 @@ def grab_ticket(
 ):
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(status_code=404, detail="活动不存在")
     if datetime.utcnow() < event.sale_start_time:
-        raise HTTPException(status_code=400, detail="Ticket sale not started")
+        raise HTTPException(status_code=400, detail="抢票尚未开始")
     ticket_type = (
         db.query(models.TicketType)
         .filter(
@@ -475,7 +477,7 @@ def grab_ticket(
         .first()
     )
     if not ticket_type:
-        raise HTTPException(status_code=404, detail="Ticket type not found")
+        raise HTTPException(status_code=404, detail="票种不存在")
     user = (
         db.query(models.User)
         .filter(models.User.id == current_user.id)
@@ -483,9 +485,9 @@ def grab_ticket(
         .first()
     )
     if ticket_type.available_qty <= 0:
-        raise HTTPException(status_code=400, detail="Tickets sold out")
+        raise HTTPException(status_code=400, detail="座位已满")
     if user.energy_coins < int(ticket_type.price):
-        raise HTTPException(status_code=400, detail="Insufficient energy coins")
+        raise HTTPException(status_code=400, detail="能量币不足")
     ticket_type.available_qty -= 1
     user.energy_coins -= int(ticket_type.price)
     order = models.Order(
