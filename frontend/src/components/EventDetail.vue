@@ -69,7 +69,14 @@ onMounted(() => {
   }).then(res => {
     coins.value = res.data.energy_coins
   })
-  const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/events/${props.event.id}?token=${token}`
+  // Connect directly to the backend on port 8000 instead of relying on the
+  // dev-server proxy. Using location.host caused websocket failures when the
+  // frontend was served on a different port (e.g. Vite's default 5173). By
+  // constructing the URL with the backend port explicitly, the connection can
+  // be established reliably in both development and production environments.
+  const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws'
+  const wsHost = `${location.hostname}:8000`
+  const wsUrl = `${wsProtocol}://${wsHost}/ws/events/${props.event.id}?token=${token}`
   ws = new WebSocket(wsUrl)
   ws.onerror = () => {
     message.value = '连接服务器失败'
