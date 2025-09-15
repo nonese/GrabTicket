@@ -11,16 +11,16 @@
       @cancel="view = 'login'"
     />
     <div v-else-if="view === 'events'">
-      <button class="admin-btn" @click="view = 'admin'">管理账户</button>
+      <button v-if="isAdmin" class="admin-btn" @click="view = 'admin'">管理账户</button>
       <EventList @select-event="selectEvent" />
       <EventDetail v-if="currentEvent" :event="currentEvent" />
     </div>
-    <AdminUsers v-else-if="view === 'admin'" @close="view = 'events'" />
+    <AdminUsers v-else-if="view === 'admin' && isAdmin" @close="view = 'events'" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Login from './components/Login.vue'
 import Register from './components/Register.vue'
 import EventList from './components/EventList.vue'
@@ -29,7 +29,9 @@ import AdminUsers from './components/AdminUsers.vue'
 
 const token = ref(localStorage.getItem('token'))
 const currentEvent = ref(null)
+const username = ref(localStorage.getItem('username'))
 const view = ref(token.value ? 'events' : 'login')
+const isAdmin = computed(() => username.value === 'admin')
 
 function selectEvent(event) {
   currentEvent.value = event
@@ -37,6 +39,7 @@ function selectEvent(event) {
 
 function onLoggedIn(t) {
   token.value = t
+  username.value = localStorage.getItem('username')
   view.value = 'events'
 }
 </script>
@@ -56,7 +59,7 @@ function onLoggedIn(t) {
   padding: 0.3rem 0.6rem;
   border: none;
   border-radius: 0.3rem;
-  background: #5A9AFF;
+  background: #4F46E5;
   color: #fff;
   cursor: pointer;
 }

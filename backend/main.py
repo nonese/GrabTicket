@@ -40,8 +40,20 @@ ticket_queue: asyncio.Queue = asyncio.Queue()
 
 @app.on_event("startup")
 async def startup_event() -> None:
-    """Launch background task processing the ticket queue."""
+    """Launch background task processing the ticket queue and seed admin."""
     asyncio.create_task(_process_queue())
+    db = SessionLocal()
+    try:
+        if not db.query(models.User).filter(models.User.username == "admin").first():
+            admin_user = models.User(
+                username="admin",
+                hashed_password=auth.get_password_hash("admin"),
+                energy_coins=10000,
+            )
+            db.add(admin_user)
+            db.commit()
+    finally:
+        db.close()
 
 
 async def _process_queue() -> None:
@@ -299,6 +311,8 @@ async def create_event(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can create events")
     image_path = None
     seat_map_path = None
     if image:
