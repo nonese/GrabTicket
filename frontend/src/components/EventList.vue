@@ -1,7 +1,11 @@
 <template>
   <div class="events">
     <h2>活动列表</h2>
-    <form v-if="isAdmin" class="create-form" @submit.prevent="createEvent">
+    <form
+      v-if="isAdmin"
+      class="create-form"
+      @submit.prevent="editingId ? updateEvent() : createEvent()"
+    >
       <div class="field">
         <label>活动名称
           <input v-model="form.title" required />
@@ -62,16 +66,27 @@
       <div class="seat-map" v-if="seatMapPreview">
         <img :src="seatMapPreview" class="seat-image" />
       </div>
-      <button type="submit">添加活动</button>
+      <button type="submit">{{ editingId ? '更新活动' : '添加活动' }}</button>
+      <button v-if="editingId" type="button" @click="cancelEdit">取消</button>
     </form>
     <div class="cards">
-      <div class="card" v-for="event in events" :key="event.id" @click="select(event)">
+      <div
+        class="card"
+        v-for="event in events"
+        :key="event.id"
+        @click="select(event)"
+      >
         <img v-if="event.cover_image" :src="event.cover_image" class="card-img" />
         <div class="card-body">
           <h3>{{ event.title }}</h3>
           <p>{{ formatDate(event.start_time) }}</p>
           <p>{{ event.location }}</p>
         </div>
+        <button
+          v-if="isAdmin"
+          class="edit-btn"
+          @click.stop="startEdit(event)"
+        >编辑</button>
       </div>
     </div>
   </div>
@@ -97,6 +112,7 @@ const seatMapPreview = ref(null)
 const ticketTypes = ref([])
 const newTicket = ref({ seat_type: '', price: 0, available_qty: 0 })
 const isAdmin = localStorage.getItem('username') === 'admin'
+const editingId = ref(null)
 
 onMounted(loadEvents)
 
@@ -157,6 +173,75 @@ async function createEvent() {
   })
   events.value.push(res.data)
   form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '', end_time: '' }
+  imageFile.value = null
+  seatMapFile.value = null
+  seatMapPreview.value = null
+  ticketTypes.value = []
+}
+
+function toLocalInput(str) {
+  if (!str) return ''
+  const d = new Date(str)
+  const offset = d.getTimezoneOffset()
+  const local = new Date(d.getTime() - offset * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function startEdit(event) {
+  editingId.value = event.id
+  form.value = {
+    title: event.title || '',
+    organizer: event.organizer || '',
+    location: event.location || '',
+    sale_start_time: toLocalInput(event.sale_start_time),
+    start_time: toLocalInput(event.start_time),
+    end_time: toLocalInput(event.end_time)
+  }
+  ticketTypes.value = event.ticket_types.map(t => ({
+    seat_type: t.seat_type,
+    price: t.price,
+    available_qty: t.available_qty
+  }))
+  seatMapPreview.value = event.seat_map_url || null
+  imageFile.value = null
+  seatMapFile.value = null
+}
+
+async function updateEvent() {
+  if (!editingId.value) return
+  const token = localStorage.getItem('token')
+  const fd = new FormData()
+  fd.append('title', form.value.title)
+  fd.append('organizer', form.value.organizer)
+  fd.append('location', form.value.location)
+  fd.append('sale_start_time', form.value.sale_start_time)
+  fd.append('start_time', form.value.start_time)
+  fd.append('end_time', form.value.end_time)
+  fd.append('ticket_types', JSON.stringify(ticketTypes.value))
+  if (form.value.description) fd.append('description', form.value.description)
+  if (imageFile.value) fd.append('image', imageFile.value)
+  if (seatMapFile.value) fd.append('seat_map', seatMapFile.value)
+  const res = await axios.put(`/events/${editingId.value}`, fd, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  const idx = events.value.findIndex(e => e.id === editingId.value)
+  if (idx >= 0) events.value[idx] = res.data
+  cancelEdit()
+}
+
+function cancelEdit() {
+  editingId.value = null
+  form.value = {
+    title: '',
+    organizer: '',
+    location: '',
+    sale_start_time: '',
+    start_time: '',
+    end_time: ''
+  }
   imageFile.value = null
   seatMapFile.value = null
   seatMapPreview.value = null
@@ -265,6 +350,15 @@ async function createEvent() {
 .card-body p {
   margin: 0;
   font-size: 0.9rem;
+}
+.edit-btn {
+  margin: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: #4F46E5;
+  color: #fff;
+  cursor: pointer;
 }
 </style>
 

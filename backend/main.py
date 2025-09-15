@@ -91,8 +91,20 @@ async def _handle_grab_request(request: dict) -> None:
             .with_for_update()
             .first()
         )
-        if ticket_type and ticket_type.available_qty > 0:
+        user = (
+            db.query(models.User)
+            .filter(models.User.id == user_id)
+            .with_for_update()
+            .first()
+        )
+        if (
+            ticket_type
+            and user
+            and ticket_type.available_qty > 0
+            and user.energy_coins >= int(ticket_type.price)
+        ):
             ticket_type.available_qty -= 1
+            user.energy_coins -= int(ticket_type.price)
             order = models.Order(
                 user_id=user_id, event_id=event_id, ticket_type_id=ticket_type_id
             )
@@ -103,6 +115,13 @@ async def _handle_grab_request(request: dict) -> None:
                 {"type": "grab_result", "status": "success", "order_id": order.id}
             )
         else:
+            reason = "Tickets sold out"
+            if not ticket_type or ticket_type.available_qty <= 0:
+                reason = "Tickets sold out"
+            elif user is None:
+                reason = "User not found"
+            elif user.energy_coins < int(ticket_type.price):
+                reason = "Insufficient energy coins"
             alternatives = (
                 db.query(models.TicketType)
                 .filter(
@@ -124,7 +143,7 @@ async def _handle_grab_request(request: dict) -> None:
                 {
                     "type": "grab_result",
                     "status": "fail",
-                    "reason": "Tickets sold out",
+                    "reason": reason,
                     "alternatives": alt_list,
                 }
             )
@@ -372,20 +391,106 @@ def read_event(event_id: int, db: Session = Depends(get_db)):
     return event
 
 
+@app.put("/events/{event_id}", response_model=schemas.Event)
+async def update_event(
+    event_id: int,
+    title: str = Form(...),
+    organizer: str = Form(...),
+    location: str = Form(...),
+    sale_start_time: datetime = Form(...),
+    start_time: datetime = Form(...),
+    end_time: datetime = Form(...),
+    description: str | None = Form(None),
+    image: UploadFile | None = File(None),
+    seat_map: UploadFile | None = File(None),
+    ticket_types: str = Form("[]"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can update events")
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if image:
+        os.makedirs("static", exist_ok=True)
+        ext = os.path.splitext(image.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join("static", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        event.cover_image = f"/static/{filename}"
+    if seat_map:
+        os.makedirs("static", exist_ok=True)
+        ext = os.path.splitext(seat_map.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join("static", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(seat_map.file, buffer)
+        event.seat_map_url = f"/static/{filename}"
+    event.title = title
+    event.organizer = organizer
+    event.location = location
+    event.description = description
+    event.sale_start_time = sale_start_time
+    event.start_time = start_time
+    event.end_time = end_time
+    db.query(models.TicketType).filter(models.TicketType.event_id == event.id).delete()
+    try:
+        tts = json.loads(ticket_types)
+    except Exception:
+        tts = []
+    for t in tts:
+        tt = models.TicketType(
+            event_id=event.id,
+            price=t.get("price", 0),
+            seat_type=t.get("seat_type", ""),
+            available_qty=t.get("available_qty", 0),
+        )
+        db.add(tt)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
 @app.post("/events/{event_id}/tickets", response_model=schemas.Order)
-def grab_ticket(event_id: int, ticket_type_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def grab_ticket(
+    event_id: int,
+    ticket_type_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     if datetime.utcnow() < event.sale_start_time:
         raise HTTPException(status_code=400, detail="Ticket sale not started")
-    ticket_type = db.query(models.TicketType).filter(models.TicketType.id == ticket_type_id, models.TicketType.event_id == event_id).with_for_update().first()
+    ticket_type = (
+        db.query(models.TicketType)
+        .filter(
+            models.TicketType.id == ticket_type_id,
+            models.TicketType.event_id == event_id,
+        )
+        .with_for_update()
+        .first()
+    )
     if not ticket_type:
         raise HTTPException(status_code=404, detail="Ticket type not found")
+    user = (
+        db.query(models.User)
+        .filter(models.User.id == current_user.id)
+        .with_for_update()
+        .first()
+    )
     if ticket_type.available_qty <= 0:
         raise HTTPException(status_code=400, detail="Tickets sold out")
+    if user.energy_coins < int(ticket_type.price):
+        raise HTTPException(status_code=400, detail="Insufficient energy coins")
     ticket_type.available_qty -= 1
-    order = models.Order(user_id=current_user.id, event_id=event_id, ticket_type_id=ticket_type_id)
+    user.energy_coins -= int(ticket_type.price)
+    order = models.Order(
+        user_id=current_user.id, event_id=event_id, ticket_type_id=ticket_type_id
+    )
     db.add(order)
     db.commit()
     db.refresh(order)
