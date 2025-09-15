@@ -53,7 +53,7 @@ let timer
 
 onMounted(() => {
   tickets.value = props.event.ticket_types || []
-  const saleStart = Date.parse(props.event.sale_start_time)
+  const saleStart = Date.parse(props.event.sale_start_time + 'Z')
   const updateCountdown = () => {
     timeLeft.value = Math.max(0, saleStart - Date.now())
   }

@@ -18,7 +18,7 @@ from fastapi import (
     Form,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, models, schemas
@@ -502,3 +502,20 @@ def grab_ticket(
     db.commit()
     db.refresh(order)
     return order
+
+
+@app.get("/orders/me", response_model=list[schemas.Order])
+def read_my_orders(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    orders = (
+        db.query(models.Order)
+        .options(
+            joinedload(models.Order.event),
+            joinedload(models.Order.ticket_type),
+        )
+        .filter(models.Order.user_id == current_user.id)
+        .all()
+    )
+    return orders
