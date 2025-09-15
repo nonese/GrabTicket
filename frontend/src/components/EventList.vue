@@ -1,19 +1,57 @@
 <template>
   <div class="events">
     <h2>活动列表</h2>
-    <form class="create-form" @submit.prevent="createEvent">
-      <input v-model="form.title" placeholder="活动名称" required />
-      <input v-model="form.organizer" placeholder="主办方" required />
-      <input v-model="form.location" placeholder="地点" required />
-      <input type="datetime-local" v-model="form.sale_start_time" required />
-      <input type="datetime-local" v-model="form.start_time" required />
-      <input type="datetime-local" v-model="form.end_time" required />
-      <input type="file" @change="onFileChange" />
-      <input type="file" @change="onSeatMapChange" />
+    <form v-if="isAdmin" class="create-form" @submit.prevent="createEvent">
+      <div class="field">
+        <label>活动名称
+          <input v-model="form.title" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>主办方
+          <input v-model="form.organizer" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>地点
+          <input v-model="form.location" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>开售时间
+          <input type="datetime-local" v-model="form.sale_start_time" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>开始时间
+          <input type="datetime-local" v-model="form.start_time" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>结束时间
+          <input type="datetime-local" v-model="form.end_time" required />
+        </label>
+      </div>
+      <div class="field">
+        <label>封面图片
+          <input type="file" @change="onFileChange" />
+        </label>
+      </div>
+      <div class="field">
+        <label>座位图
+          <input type="file" @change="onSeatMapChange" />
+        </label>
+      </div>
       <div class="block-form">
-        <input v-model="newTicket.seat_type" placeholder="票档名称" />
-        <input type="number" v-model.number="newTicket.price" placeholder="价格" />
-        <input type="number" v-model.number="newTicket.available_qty" placeholder="数量" />
+        <label>票档名称
+          <input v-model="newTicket.seat_type" />
+        </label>
+        <label>价格
+          <input type="number" v-model.number="newTicket.price" />
+        </label>
+        <label>数量
+          <input type="number" v-model.number="newTicket.available_qty" />
+        </label>
         <button type="button" @click="addTicket">添加票档</button>
       </div>
       <ul class="ticket-list" v-if="ticketTypes.length">
@@ -58,6 +96,7 @@ const seatMapFile = ref(null)
 const seatMapPreview = ref(null)
 const ticketTypes = ref([])
 const newTicket = ref({ seat_type: '', price: 0, available_qty: 0 })
+const isAdmin = localStorage.getItem('username') === 'admin'
 
 onMounted(loadEvents)
 
@@ -140,13 +179,22 @@ async function createEvent() {
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
+.create-form .field {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+}
+.create-form label {
+  font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
 .create-form input {
   padding: 0.3rem;
   border: 1px solid #ccc;
   border-radius: 0.3rem;
 }
 .create-form button {
-  background: #5A9AFF;
+  background: #4F46E5;
   color: #fff;
   border: none;
   border-radius: 0.5rem;
@@ -159,6 +207,16 @@ async function createEvent() {
   flex-wrap: wrap;
   margin-top: 0.5rem;
   align-items: center;
+}
+.block-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+.block-form input {
+  padding: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 0.3rem;
 }
 .seat-map {
   position: relative;
