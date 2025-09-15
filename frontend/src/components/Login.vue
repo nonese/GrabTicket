@@ -40,14 +40,24 @@ async function login() {
   margin: 2rem auto;
   display: flex;
   flex-direction: column;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 input {
   margin-bottom: 0.5rem;
   padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
 }
 button {
   padding: 0.5rem;
   cursor: pointer;
+  background: #5A9AFF;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
 }
 .error {
   color: red;

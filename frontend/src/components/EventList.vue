@@ -30,6 +30,20 @@ function select(event) {
 </script>
 
 <style scoped>
+.events {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-top: 1rem;
+  text-align: left;
+}
+.events h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+  color: #ff5f00;
+}
 .events ul {
   list-style: none;
   padding: 0;

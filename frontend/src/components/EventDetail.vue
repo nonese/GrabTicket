@@ -39,9 +39,16 @@ async function buy(ticketTypeId) {
 
 <style scoped>
 .event-detail {
-  border: 1px solid #ddd;
-  padding: 1rem;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-top: 1rem;
+  text-align: left;
+}
+.event-detail h3 {
+  margin-top: 0;
+  color: #ff5f00;
 }
 .tickets {
   margin-top: 1rem;
@@ -51,5 +58,11 @@ async function buy(ticketTypeId) {
 }
 .ticket button {
   margin-left: 1rem;
+  background: #5A9AFF;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
 }
 </style>
