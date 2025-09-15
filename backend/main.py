@@ -128,7 +128,7 @@ async def _broadcast_seat_counts(event_id: int, db: Session | None = None) -> No
             try:
                 await conn.send_json(data)
             except Exception:
-                pass
+                event_connections[event_id].discard(conn)
     finally:
         if close_db:
             db.close()
