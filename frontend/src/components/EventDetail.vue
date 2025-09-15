@@ -3,9 +3,9 @@
     <h3>{{ event.title }}</h3>
     <img :src="event.seat_map_url" alt="seat map" v-if="event.seat_map_url" />
     <div class="tickets">
-      <div v-for="t in event.ticket_types" :key="t.id" class="ticket">
+      <div v-for="t in tickets" :key="t.id" class="ticket">
         <span>{{ t.seat_type }} - ￥{{ t.price }}</span>
-        <button @click="buy(t.id)" :disabled="t.available_qty === 0">抢票</button>
+        <button @click="grab(t.id)" :disabled="t.available_qty === 0">抢票</button>
         <span v-if="t.available_qty === 0">售罄</span>
       </div>
     </div>
@@ -14,26 +14,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import axios from 'axios'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   event: Object
 })
 
 const message = ref('')
+const tickets = ref([])
+let ws
 
-async function buy(ticketTypeId) {
+onMounted(() => {
+  tickets.value = props.event.ticket_types || []
   const token = localStorage.getItem('token')
-  try {
-    const res = await axios.post(`/events/${props.event.id}/tickets`, null, {
-      params: { ticket_type_id: ticketTypeId },
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    message.value = '抢票成功！订单号: ' + res.data.id
-  } catch (e) {
-    message.value = '抢票失败'
+  const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/events/${props.event.id}?token=${token}`
+  ws = new WebSocket(wsUrl)
+  ws.onmessage = (evt) => {
+    const data = JSON.parse(evt.data)
+    if (data.type === 'seat_counts') {
+      tickets.value = tickets.value.map(t => {
+        const match = data.tickets.find(dt => dt.ticket_type_id === t.id)
+        return match ? { ...t, available_qty: match.available_qty } : t
+      })
+    } else if (data.type === 'grab_result') {
+      if (data.status === 'success') {
+        message.value = '抢票成功！订单号: ' + data.order_id
+      } else {
+        const alts = (data.alternatives || []).map(a => `${a.seat_type}(${a.available_qty})`).join(', ')
+        message.value = '抢票失败，座位已满' + (alts ? '，可选：' + alts : '')
+      }
+    }
   }
+})
+
+onUnmounted(() => {
+  if (ws) ws.close()
+})
+
+function grab(ticketTypeId) {
+  ws?.send(JSON.stringify({ action: 'grab', ticket_type_id: ticketTypeId }))
 }
 </script>
 

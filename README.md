@@ -46,7 +46,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/auth': 'http://localhost:8000',
-      '/events': 'http://localhost:8000'
+      '/events': 'http://localhost:8000',
+      '/ws': { target: 'ws://localhost:8000', ws: true }
     }
   }
 })
@@ -92,7 +93,13 @@ npm run dev
 
 4. **抢票**
 
-   前端登录成功后可在活动详情中选择票种并抢票。接口 `POST /events/{event_id}/tickets` 会在库存充足时创建订单。
+   前端通过 WebSocket 与后端交互抢票：
+
+   - 连接地址：`ws://localhost:8000/ws/events/{event_id}?token=<登录令牌>`
+   - 后端会持续通过该连接广播各票种剩余数量。
+   - 发送 `{"action":"grab","ticket_type_id":1}` 抢购指定票种，
+     服务端按顺序队列依次处理请求；
+     库存不足时会返回失败并附带其他仍有余票的票种信息。
 
 ## 备注
 
