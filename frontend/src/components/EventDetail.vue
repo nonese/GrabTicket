@@ -50,7 +50,9 @@ let timer
 
 onMounted(() => {
   tickets.value = props.event.ticket_types || []
-  const saleStart = new Date(props.event.sale_start_time).getTime()
+  const saleStart = new Date(
+    String(props.event.sale_start_time).replace(' ', 'T')
+  ).getTime()
   const updateCountdown = () => {
     const diff = saleStart - Date.now()
     timeLeft.value = diff > 0 ? diff : 0
@@ -76,7 +78,7 @@ onMounted(() => {
         message.value = '抢票成功！订单号: ' + data.order_id
       } else {
         const alts = (data.alternatives || []).map(a => `${a.seat_type}(${a.available_qty})`).join(', ')
-        if (data.reason === 'Tickets sold out') {
+        if (data.reason === '座位已满') {
           message.value = '抢票失败，座位已满' + (alts ? '，可选：' + alts : '')
         } else {
           message.value = '抢票失败：' + data.reason
