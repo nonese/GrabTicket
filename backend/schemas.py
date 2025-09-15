@@ -42,10 +42,13 @@ class TicketType(TicketTypeBase):
 
 class EventBase(BaseModel):
     title: str
+    organizer: Optional[str] = None
+    location: Optional[str] = None
     description: Optional[str] = None
     start_time: datetime
     end_time: datetime
     seat_map_url: Optional[str] = None
+    cover_image: Optional[str] = None
 
 
 class Event(EventBase):

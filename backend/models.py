@@ -20,10 +20,13 @@ class Event(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
+    organizer = Column(String, nullable=True)
+    location = Column(String, nullable=True)
     description = Column(String, nullable=True)
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     seat_map_url = Column(String, nullable=True)
+    cover_image = Column(String, nullable=True)
 
     ticket_types = relationship("TicketType", back_populates="event")
     orders = relationship("Order", back_populates="event")
