@@ -22,7 +22,7 @@
       <h3>抢票记录</h3>
       <ul v-if="orders.length">
         <li v-for="o in orders" :key="o.id">
-          {{ o.event.title }} - {{ o.ticket_type.seat_type }} - {{ new Date(o.created_at + 'Z').toLocaleString() }}
+          {{ o.event?.title || '未知活动' }} - {{ o.ticket_type?.seat_type || '未知票档' }} - {{ formatOrderDate(o.created_at) }}
         </li>
       </ul>
       <p v-else-if="loadingOrders">加载中...</p>
@@ -84,6 +84,27 @@ async function openOrders() {
   } finally {
     loadingOrders.value = false
   }
+}
+
+function formatOrderDate(value) {
+  if (!value) return '--'
+  let date
+  if (typeof value === 'number') {
+    const ts = value < 1e12 ? value * 1000 : value
+    date = new Date(ts)
+  } else if (typeof value === 'string') {
+    const hasTimezone = /(Z|[+-]\d{2}:\d{2})$/i.test(value)
+    const normalized = hasTimezone ? value : `${value}Z`
+    date = new Date(normalized)
+    if (Number.isNaN(date.getTime())) {
+      date = new Date(value)
+    }
+  } else if (value instanceof Date) {
+    date = value
+  } else {
+    return '--'
+  }
+  return Number.isNaN(date.getTime()) ? '--' : date.toLocaleString()
 }
 </script>
 
