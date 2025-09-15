@@ -24,7 +24,10 @@ function selectEvent(event) {
 
 <style>
 .container {
-  padding: 1rem;
-  font-family: Arial, sans-serif;
+  max-width: 750px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  text-align: center;
+  position: relative;
 }
 </style>
