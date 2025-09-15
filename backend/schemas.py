@@ -52,7 +52,7 @@ class EventBase(BaseModel):
     description: Optional[str] = None
     sale_start_time: datetime
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime] = None
     seat_map_url: Optional[str] = None
     cover_image: Optional[str] = None
 

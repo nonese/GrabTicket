@@ -88,7 +88,7 @@ npm run dev
    curl -X POST http://localhost:8000/events \
         -H "Authorization: Bearer <token>" \
         -H "Content-Type: application/json" \
-        -d '{"title":"音乐会","start_time":"2024-05-01T19:00:00","end_time":"2024-05-01T21:00:00"}'
+       -d '{"title":"音乐会","sale_start_time":"2024-04-01T10:00:00","start_time":"2024-05-01T19:00:00"}'
    ```
 
 4. **抢票**

@@ -271,6 +271,11 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     return schemas.Token(access_token=access_token)
 
 
+@app.get("/users/me", response_model=schemas.User)
+def read_current_user(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
 @app.get("/admin/users", response_model=list[schemas.User])
 def admin_list_users(
     db: Session = Depends(get_db),
@@ -324,7 +329,7 @@ async def create_event(
     location: str = Form(...),
     sale_start_time: datetime = Form(...),
     start_time: datetime = Form(...),
-    end_time: datetime = Form(...),
+    end_time: datetime | None = Form(None),
     description: str | None = Form(None),
     image: UploadFile | None = File(None),
     seat_map: UploadFile | None = File(None),
@@ -401,7 +406,7 @@ async def update_event(
     location: str = Form(...),
     sale_start_time: datetime = Form(...),
     start_time: datetime = Form(...),
-    end_time: datetime = Form(...),
+    end_time: datetime | None = Form(None),
     description: str | None = Form(None),
     image: UploadFile | None = File(None),
     seat_map: UploadFile | None = File(None),
