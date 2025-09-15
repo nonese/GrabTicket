@@ -25,6 +25,7 @@
           {{ o.event.title }} - {{ o.ticket_type.seat_type }} - {{ new Date(o.created_at + 'Z').toLocaleString() }}
         </li>
       </ul>
+      <p v-else-if="loadingOrders">加载中...</p>
       <p v-else>暂无抢票记录</p>
     </Modal>
   </div>
@@ -47,6 +48,7 @@ const view = ref(token.value ? 'events' : 'login')
 const isAdmin = computed(() => username.value === 'admin')
 const showOrders = ref(false)
 const orders = ref([])
+const loadingOrders = ref(false)
 
 function selectEvent(event) {
   currentEvent.value = event
@@ -68,6 +70,9 @@ function logout() {
 }
 
 async function openOrders() {
+  showOrders.value = true
+  loadingOrders.value = true
+  orders.value = []
   const tok = localStorage.getItem('token')
   try {
     const res = await axios.get('/orders/me', {
@@ -77,7 +82,7 @@ async function openOrders() {
   } catch (e) {
     orders.value = []
   } finally {
-    showOrders.value = true
+    loadingOrders.value = false
   }
 }
 </script>
