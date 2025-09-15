@@ -11,7 +11,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="u in users" :key="u.id">
+        <tr v-for="u in paginatedUsers" :key="u.id">
           <td>{{ u.id }}</td>
           <td>{{ u.username }}</td>
           <td>{{ u.energy_coins }}</td>
@@ -21,6 +21,11 @@
         </tr>
       </tbody>
     </table>
+    <div class="pagination">
+      <button @click="prevPage" :disabled="currentPage === 1">上一页</button>
+      <span>{{ currentPage }} / {{ totalPages }}</span>
+      <button @click="nextPage" :disabled="currentPage === totalPages">下一页</button>
+    </div>
     <button @click="$emit('close')">返回</button>
 
     <Modal v-if="showEditor" @close="showEditor = false">
@@ -42,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 import Modal from './Modal.vue'
 
@@ -52,6 +57,14 @@ const showMessage = ref(false)
 const message = ref('')
 const newCoins = ref(0)
 const currentUser = ref(null)
+const currentPage = ref(1)
+const pageSize = 10
+
+const totalPages = computed(() => Math.ceil(users.value.length / pageSize) || 1)
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return users.value.slice(start, start + pageSize)
+})
 
 onMounted(loadUsers)
 
@@ -67,6 +80,14 @@ function openModify(user) {
   currentUser.value = user
   newCoins.value = user.energy_coins
   showEditor.value = true
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) currentPage.value++
+}
+
+function prevPage() {
+  if (currentPage.value > 1) currentPage.value--
 }
 
 async function submitModify() {
@@ -112,6 +133,17 @@ button {
   background: #4F46E5;
   color: #fff;
   cursor: pointer;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.pagination span {
+  margin: 0 0.5rem;
 }
 
 .modal-actions {
