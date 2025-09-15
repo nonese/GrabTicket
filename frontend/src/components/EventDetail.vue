@@ -69,7 +69,12 @@ onMounted(() => {
   }).then(res => {
     coins.value = res.data.energy_coins
   })
-  const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/events/${props.event.id}?token=${token}`
+  // Allow the websocket host to be configured via VITE_WS_HOST so the
+  // connection works when the frontend and backend run on different hosts or
+  // ports. If the variable is not set we fall back to the current location.
+  const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws'
+  const wsHost = import.meta.env.VITE_WS_HOST || location.host
+  const wsUrl = `${wsProtocol}://${wsHost}/ws/events/${props.event.id}?token=${token}`
   ws = new WebSocket(wsUrl)
   ws.onerror = () => {
     message.value = '连接服务器失败'
