@@ -32,11 +32,6 @@
         </label>
       </div>
       <div class="field">
-        <label>结束时间
-          <input type="datetime-local" v-model="form.end_time" required />
-        </label>
-      </div>
-      <div class="field">
         <label>封面图片
           <input type="file" @change="onFileChange" />
         </label>
@@ -104,7 +99,7 @@ const form = ref({
   location: '',
   sale_start_time: '',
   start_time: '',
-  end_time: ''
+  
 })
 const imageFile = ref(null)
 const seatMapFile = ref(null)
@@ -157,7 +152,6 @@ async function createEvent() {
   fd.append('location', form.value.location)
   fd.append('sale_start_time', form.value.sale_start_time)
   fd.append('start_time', form.value.start_time)
-  fd.append('end_time', form.value.end_time)
   if (imageFile.value) {
     fd.append('image', imageFile.value)
   }
@@ -172,7 +166,7 @@ async function createEvent() {
     }
   })
   events.value.push(res.data)
-  form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '', end_time: '' }
+  form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '' }
   imageFile.value = null
   seatMapFile.value = null
   seatMapPreview.value = null
@@ -195,7 +189,6 @@ function startEdit(event) {
     location: event.location || '',
     sale_start_time: toLocalInput(event.sale_start_time),
     start_time: toLocalInput(event.start_time),
-    end_time: toLocalInput(event.end_time)
   }
   ticketTypes.value = event.ticket_types.map(t => ({
     seat_type: t.seat_type,
@@ -216,7 +209,6 @@ async function updateEvent() {
   fd.append('location', form.value.location)
   fd.append('sale_start_time', form.value.sale_start_time)
   fd.append('start_time', form.value.start_time)
-  fd.append('end_time', form.value.end_time)
   fd.append('ticket_types', JSON.stringify(ticketTypes.value))
   if (form.value.description) fd.append('description', form.value.description)
   if (imageFile.value) fd.append('image', imageFile.value)
@@ -240,7 +232,7 @@ function cancelEdit() {
     location: '',
     sale_start_time: '',
     start_time: '',
-    end_time: ''
+    
   }
   imageFile.value = null
   seatMapFile.value = null

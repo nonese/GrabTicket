@@ -1,6 +1,7 @@
 <template>
   <div class="event-detail">
     <h3>{{ event.title }}</h3>
+    <p>当前能量币：{{ coins }}</p>
     <div class="seat-map" v-if="event.seat_map_url">
       <img :src="event.seat_map_url" class="seat-image" />
     </div>
@@ -33,6 +34,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import axios from 'axios'
 import Modal from './Modal.vue'
 
 const props = defineProps({
@@ -45,6 +47,7 @@ const timeLeft = ref(0)
 const started = computed(() => timeLeft.value <= 0)
 const selected = ref(null)
 const showConfirm = ref(false)
+const coins = ref(0)
 let ws
 let timer
 
@@ -60,6 +63,11 @@ onMounted(() => {
   updateCountdown()
   timer = setInterval(updateCountdown, 1000)
   const token = localStorage.getItem('token')
+  axios.get('/users/me', {
+    headers: { Authorization: `Bearer ${token}` }
+  }).then(res => {
+    coins.value = res.data.energy_coins
+  })
   const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/events/${props.event.id}?token=${token}`
   ws = new WebSocket(wsUrl)
   ws.onmessage = (evt) => {
@@ -76,6 +84,7 @@ onMounted(() => {
     } else if (data.type === 'grab_result') {
       if (data.status === 'success') {
         message.value = '抢票成功！订单号: ' + data.order_id
+        coins.value -= selected.value.price
       } else {
         const alts = (data.alternatives || []).map(a => `${a.seat_type}(${a.available_qty})`).join(', ')
         if (data.reason === '座位已满') {
