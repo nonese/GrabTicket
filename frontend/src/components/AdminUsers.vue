@@ -16,20 +16,42 @@
           <td>{{ u.username }}</td>
           <td>{{ u.energy_coins }}</td>
           <td>
-            <button @click="modify(u)">修改</button>
+            <button @click="openModify(u)">修改</button>
           </td>
         </tr>
       </tbody>
     </table>
     <button @click="$emit('close')">返回</button>
+
+    <Modal v-if="showEditor" @close="showEditor = false">
+      <h3>修改能量币</h3>
+      <input type="number" v-model.number="newCoins" />
+      <div class="modal-actions">
+        <button @click="submitModify">保存</button>
+        <button @click="showEditor = false">取消</button>
+      </div>
+    </Modal>
+
+    <Modal v-if="showMessage" @close="showMessage = false">
+      <p>{{ message }}</p>
+      <div class="modal-actions">
+        <button @click="showMessage = false">确定</button>
+      </div>
+    </Modal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import Modal from './Modal.vue'
 
 const users = ref([])
+const showEditor = ref(false)
+const showMessage = ref(false)
+const message = ref('')
+const newCoins = ref(0)
+const currentUser = ref(null)
 
 onMounted(loadUsers)
 
@@ -41,21 +63,26 @@ async function loadUsers() {
   users.value = res.data
 }
 
-async function modify(user) {
-  const val = prompt('请输入新的能量币数量', user.energy_coins)
-  const newCoins = parseInt(val)
-  if (isNaN(newCoins)) return
+function openModify(user) {
+  currentUser.value = user
+  newCoins.value = user.energy_coins
+  showEditor.value = true
+}
+
+async function submitModify() {
   const token = localStorage.getItem('token')
-  const res = await axios.put(`/admin/users/${user.id}/coins`, {
-    energy_coins: newCoins
+  const res = await axios.put(`/admin/users/${currentUser.value.id}/coins`, {
+    energy_coins: newCoins.value
   }, {
     headers: { Authorization: `Bearer ${token}` }
   })
-  user.energy_coins = res.data.energy_coins
-  await axios.post(`/admin/users/${user.id}/reset_password`, {}, {
+  currentUser.value.energy_coins = res.data.energy_coins
+  await axios.post(`/admin/users/${currentUser.value.id}/reset_password`, {}, {
     headers: { Authorization: `Bearer ${token}` }
   })
-  alert('已更新能量币并重置密码为123456')
+  showEditor.value = false
+  message.value = '已更新能量币并重置密码为123456'
+  showMessage.value = true
 }
 </script>
 
@@ -85,5 +112,13 @@ button {
   background: #4F46E5;
   color: #fff;
   cursor: pointer;
+}
+
+.modal-actions {
+  margin-top: 1rem;
+}
+
+.modal-actions button {
+  margin: 0 0.3rem;
 }
 </style>

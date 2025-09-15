@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <button v-if="token" class="logout-btn" @click="logout">退出登录</button>
     <Login
       v-if="view === 'login'"
       @logged-in="onLoggedIn"
@@ -42,6 +43,15 @@ function onLoggedIn(t) {
   username.value = localStorage.getItem('username')
   view.value = 'events'
 }
+
+function logout() {
+  token.value = null
+  username.value = null
+  currentEvent.value = null
+  localStorage.removeItem('token')
+  localStorage.removeItem('username')
+  view.value = 'login'
+}
 </script>
 
 <style>
@@ -60,6 +70,17 @@ function onLoggedIn(t) {
   border: none;
   border-radius: 0.3rem;
   background: #4F46E5;
+  color: #fff;
+  cursor: pointer;
+}
+.logout-btn {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: #DC2626;
   color: #fff;
   cursor: pointer;
 }

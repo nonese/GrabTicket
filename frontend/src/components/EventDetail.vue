@@ -20,11 +20,20 @@
     </button>
     <p v-if="!started">距离开抢还有：{{ formatTime(timeLeft) }}</p>
     <p v-if="message">{{ message }}</p>
+
+    <Modal v-if="showConfirm" @close="showConfirm = false">
+      <p>需要支付{{ selected.price }}水晶能量币，是否继续？</p>
+      <div class="modal-actions">
+        <button @click="doGrab">确认</button>
+        <button @click="showConfirm = false">取消</button>
+      </div>
+    </Modal>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import Modal from './Modal.vue'
 
 const props = defineProps({
   event: Object
@@ -35,6 +44,7 @@ const tickets = ref([])
 const timeLeft = ref(0)
 const started = computed(() => timeLeft.value <= 0)
 const selected = ref(null)
+const showConfirm = ref(false)
 let ws
 let timer
 
@@ -87,10 +97,13 @@ function confirm() {
     message.value = '未到开抢时间'
     return
   }
+  showConfirm.value = true
+}
+
+function doGrab() {
   const t = selected.value
-  if (window.confirm(`需要支付${t.price}水晶能量币，是否继续？`)) {
-    grab(t.id)
-  }
+  showConfirm.value = false
+  grab(t.id)
 }
 
 function formatTime(ms) {
@@ -158,5 +171,18 @@ function formatTime(ms) {
 .confirm-btn:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+.modal-actions {
+  margin-top: 1rem;
+  text-align: center;
+}
+.modal-actions button {
+  margin: 0 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: #4F46E5;
+  color: #fff;
+  cursor: pointer;
 }
 </style>
