@@ -36,8 +36,6 @@ class TicketTypeBase(BaseModel):
     price: float
     seat_type: str
     available_qty: int
-    pos_x: int
-    pos_y: int
 
 
 class TicketType(TicketTypeBase):
@@ -52,6 +50,7 @@ class EventBase(BaseModel):
     organizer: Optional[str] = None
     location: Optional[str] = None
     description: Optional[str] = None
+    sale_start_time: datetime
     start_time: datetime
     end_time: datetime
     seat_map_url: Optional[str] = None

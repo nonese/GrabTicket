@@ -5,27 +5,24 @@
       <input v-model="form.title" placeholder="活动名称" required />
       <input v-model="form.organizer" placeholder="主办方" required />
       <input v-model="form.location" placeholder="地点" required />
+      <input type="datetime-local" v-model="form.sale_start_time" required />
       <input type="datetime-local" v-model="form.start_time" required />
       <input type="datetime-local" v-model="form.end_time" required />
       <input type="file" @change="onFileChange" />
       <input type="file" @change="onSeatMapChange" />
       <div class="block-form">
-        <input v-model="newBlock.seat_type" placeholder="座位类型" />
-        <input type="number" v-model.number="newBlock.price" placeholder="价格" />
-        <input type="number" v-model.number="newBlock.available_qty" placeholder="数量" />
-        <button type="button" @click="addBlock">添加座位方块</button>
+        <input v-model="newTicket.seat_type" placeholder="票档名称" />
+        <input type="number" v-model.number="newTicket.price" placeholder="价格" />
+        <input type="number" v-model.number="newTicket.available_qty" placeholder="数量" />
+        <button type="button" @click="addTicket">添加票档</button>
       </div>
-      <div class="seat-map" v-if="seatMapPreview" ref="seatMapRef" @mousemove="onMove" @mouseup="stopDrag">
+      <ul class="ticket-list" v-if="ticketTypes.length">
+        <li v-for="(t, idx) in ticketTypes" :key="idx">
+          {{ t.seat_type }} - ¥{{ t.price }} - {{ t.available_qty }}张
+        </li>
+      </ul>
+      <div class="seat-map" v-if="seatMapPreview">
         <img :src="seatMapPreview" class="seat-image" />
-        <div
-          v-for="(b, idx) in seatBlocks"
-          :key="idx"
-          class="seat-block"
-          :style="{left: b.pos_x + 'px', top: b.pos_y + 'px'}"
-          @mousedown.prevent="startDrag(idx, $event)"
-        >
-          {{ b.seat_type }}({{ b.available_qty }})
-        </div>
       </div>
       <button type="submit">添加活动</button>
     </form>
@@ -52,16 +49,15 @@ const form = ref({
   title: '',
   organizer: '',
   location: '',
+  sale_start_time: '',
   start_time: '',
   end_time: ''
 })
 const imageFile = ref(null)
 const seatMapFile = ref(null)
 const seatMapPreview = ref(null)
-const seatBlocks = ref([])
-const newBlock = ref({ seat_type: '', price: 0, available_qty: 0 })
-const dragging = ref({ index: null, offsetX: 0, offsetY: 0 })
-const seatMapRef = ref(null)
+const ticketTypes = ref([])
+const newTicket = ref({ seat_type: '', price: 0, available_qty: 0 })
 
 onMounted(loadEvents)
 
@@ -88,26 +84,10 @@ function onSeatMapChange(e) {
   }
 }
 
-function addBlock() {
-  if (!newBlock.value.seat_type) return
-  seatBlocks.value.push({ ...newBlock.value, pos_x: 0, pos_y: 0 })
-  newBlock.value = { seat_type: '', price: 0, available_qty: 0 }
-}
-
-function startDrag(idx, e) {
-  dragging.value = { index: idx, offsetX: e.offsetX, offsetY: e.offsetY }
-}
-
-function onMove(e) {
-  if (dragging.value.index === null) return
-  const rect = seatMapRef.value.getBoundingClientRect()
-  const b = seatBlocks.value[dragging.value.index]
-  b.pos_x = e.clientX - rect.left - dragging.value.offsetX
-  b.pos_y = e.clientY - rect.top - dragging.value.offsetY
-}
-
-function stopDrag() {
-  dragging.value.index = null
+function addTicket() {
+  if (!newTicket.value.seat_type) return
+  ticketTypes.value.push({ ...newTicket.value })
+  newTicket.value = { seat_type: '', price: 0, available_qty: 0 }
 }
 
 function formatDate(str) {
@@ -120,6 +100,7 @@ async function createEvent() {
   fd.append('title', form.value.title)
   fd.append('organizer', form.value.organizer)
   fd.append('location', form.value.location)
+  fd.append('sale_start_time', form.value.sale_start_time)
   fd.append('start_time', form.value.start_time)
   fd.append('end_time', form.value.end_time)
   if (imageFile.value) {
@@ -128,7 +109,7 @@ async function createEvent() {
   if (seatMapFile.value) {
     fd.append('seat_map', seatMapFile.value)
   }
-  fd.append('ticket_types', JSON.stringify(seatBlocks.value))
+  fd.append('ticket_types', JSON.stringify(ticketTypes.value))
   const res = await axios.post('/events', fd, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -136,11 +117,11 @@ async function createEvent() {
     }
   })
   events.value.push(res.data)
-  form.value = { title: '', organizer: '', location: '', start_time: '', end_time: '' }
+  form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '', end_time: '' }
   imageFile.value = null
   seatMapFile.value = null
   seatMapPreview.value = null
-  seatBlocks.value = []
+  ticketTypes.value = []
 }
 </script>
 
@@ -189,17 +170,13 @@ async function createEvent() {
   display: block;
   max-width: 100%;
 }
-.seat-block {
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  background: rgba(90,154,255,0.8);
-  color: #fff;
-  text-align: center;
-  line-height: 50px;
-  cursor: move;
-  border-radius: 4px;
-  user-select: none;
+.ticket-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+}
+.ticket-list li {
+  margin-bottom: 0.25rem;
 }
 .cards {
   display: flex;
