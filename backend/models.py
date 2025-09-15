@@ -40,6 +40,8 @@ class TicketType(Base):
     price = Column(Float)
     seat_type = Column(String)
     available_qty = Column(Integer)
+    pos_x = Column(Integer, default=0)
+    pos_y = Column(Integer, default=0)
 
     event = relationship("Event", back_populates="ticket_types")
     orders = relationship("Order", back_populates="ticket_type")

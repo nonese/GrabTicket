@@ -3,6 +3,7 @@ import asyncio
 import os
 import uuid
 import shutil
+import json
 from typing import Dict, Set
 
 from fastapi import (
@@ -238,10 +239,13 @@ async def create_event(
     end_time: datetime = Form(...),
     description: str | None = Form(None),
     image: UploadFile | None = File(None),
+    seat_map: UploadFile | None = File(None),
+    ticket_types: str = Form("[]"),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     image_path = None
+    seat_map_path = None
     if image:
         os.makedirs("static", exist_ok=True)
         ext = os.path.splitext(image.filename)[1]
@@ -250,6 +254,14 @@ async def create_event(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
         image_path = f"/static/{filename}"
+    if seat_map:
+        os.makedirs("static", exist_ok=True)
+        ext = os.path.splitext(seat_map.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join("static", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(seat_map.file, buffer)
+        seat_map_path = f"/static/{filename}"
 
     db_event = models.Event(
         title=title,
@@ -259,8 +271,26 @@ async def create_event(
         start_time=start_time,
         end_time=end_time,
         cover_image=image_path,
+        seat_map_url=seat_map_path,
     )
     db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+
+    try:
+        tts = json.loads(ticket_types)
+    except Exception:
+        tts = []
+    for t in tts:
+        tt = models.TicketType(
+            event_id=db_event.id,
+            price=t.get("price", 0),
+            seat_type=t.get("seat_type", ""),
+            available_qty=t.get("available_qty", 0),
+            pos_x=t.get("pos_x", 0),
+            pos_y=t.get("pos_y", 0),
+        )
+        db.add(tt)
     db.commit()
     db.refresh(db_event)
     return db_event

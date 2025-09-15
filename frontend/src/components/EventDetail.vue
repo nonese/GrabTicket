@@ -1,12 +1,16 @@
 <template>
   <div class="event-detail">
     <h3>{{ event.title }}</h3>
-    <img :src="event.seat_map_url" alt="seat map" v-if="event.seat_map_url" />
-    <div class="tickets">
-      <div v-for="t in tickets" :key="t.id" class="ticket">
-        <span>{{ t.seat_type }} - ￥{{ t.price }}</span>
-        <button @click="grab(t.id)" :disabled="t.available_qty === 0">抢票</button>
-        <span v-if="t.available_qty === 0">售罄</span>
+    <div class="seat-map" v-if="event.seat_map_url">
+      <img :src="event.seat_map_url" class="seat-image" />
+      <div
+        v-for="t in tickets"
+        :key="t.id"
+        class="seat-block"
+        :style="{left: t.pos_x + 'px', top: t.pos_y + 'px'}"
+        @click="tryGrab(t)"
+      >
+        {{ t.seat_type }}({{ t.available_qty }})
       </div>
     </div>
     <p v-if="message">{{ message }}</p>
@@ -54,6 +58,12 @@ onUnmounted(() => {
 function grab(ticketTypeId) {
   ws?.send(JSON.stringify({ action: 'grab', ticket_type_id: ticketTypeId }))
 }
+
+function tryGrab(t) {
+  if (window.confirm(`需要支付${t.price}水晶能量币，是否继续？`)) {
+    grab(t.id)
+  }
+}
 </script>
 
 <style scoped>
@@ -69,19 +79,26 @@ function grab(ticketTypeId) {
   margin-top: 0;
   color: #ff5f00;
 }
-.tickets {
+.seat-map {
+  position: relative;
   margin-top: 1rem;
+  border: 1px solid #ddd;
+  display: inline-block;
 }
-.ticket {
-  margin-bottom: 0.5rem;
+.seat-image {
+  display: block;
+  max-width: 100%;
 }
-.ticket button {
-  margin-left: 1rem;
-  background: #5A9AFF;
+.seat-block {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: rgba(90,154,255,0.8);
   color: #fff;
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.3rem 0.6rem;
+  text-align: center;
+  line-height: 50px;
   cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
 }
 </style>

@@ -8,6 +8,25 @@
       <input type="datetime-local" v-model="form.start_time" required />
       <input type="datetime-local" v-model="form.end_time" required />
       <input type="file" @change="onFileChange" />
+      <input type="file" @change="onSeatMapChange" />
+      <div class="block-form">
+        <input v-model="newBlock.seat_type" placeholder="座位类型" />
+        <input type="number" v-model.number="newBlock.price" placeholder="价格" />
+        <input type="number" v-model.number="newBlock.available_qty" placeholder="数量" />
+        <button type="button" @click="addBlock">添加座位方块</button>
+      </div>
+      <div class="seat-map" v-if="seatMapPreview" ref="seatMapRef" @mousemove="onMove" @mouseup="stopDrag">
+        <img :src="seatMapPreview" class="seat-image" />
+        <div
+          v-for="(b, idx) in seatBlocks"
+          :key="idx"
+          class="seat-block"
+          :style="{left: b.pos_x + 'px', top: b.pos_y + 'px'}"
+          @mousedown.prevent="startDrag(idx, $event)"
+        >
+          {{ b.seat_type }}({{ b.available_qty }})
+        </div>
+      </div>
       <button type="submit">添加活动</button>
     </form>
     <div class="cards">
@@ -37,6 +56,12 @@ const form = ref({
   end_time: ''
 })
 const imageFile = ref(null)
+const seatMapFile = ref(null)
+const seatMapPreview = ref(null)
+const seatBlocks = ref([])
+const newBlock = ref({ seat_type: '', price: 0, available_qty: 0 })
+const dragging = ref({ index: null, offsetX: 0, offsetY: 0 })
+const seatMapRef = ref(null)
 
 onMounted(loadEvents)
 
@@ -56,6 +81,35 @@ function onFileChange(e) {
   imageFile.value = e.target.files[0]
 }
 
+function onSeatMapChange(e) {
+  seatMapFile.value = e.target.files[0]
+  if (seatMapFile.value) {
+    seatMapPreview.value = URL.createObjectURL(seatMapFile.value)
+  }
+}
+
+function addBlock() {
+  if (!newBlock.value.seat_type) return
+  seatBlocks.value.push({ ...newBlock.value, pos_x: 0, pos_y: 0 })
+  newBlock.value = { seat_type: '', price: 0, available_qty: 0 }
+}
+
+function startDrag(idx, e) {
+  dragging.value = { index: idx, offsetX: e.offsetX, offsetY: e.offsetY }
+}
+
+function onMove(e) {
+  if (dragging.value.index === null) return
+  const rect = seatMapRef.value.getBoundingClientRect()
+  const b = seatBlocks.value[dragging.value.index]
+  b.pos_x = e.clientX - rect.left - dragging.value.offsetX
+  b.pos_y = e.clientY - rect.top - dragging.value.offsetY
+}
+
+function stopDrag() {
+  dragging.value.index = null
+}
+
 function formatDate(str) {
   return new Date(str).toLocaleString()
 }
@@ -71,6 +125,10 @@ async function createEvent() {
   if (imageFile.value) {
     fd.append('image', imageFile.value)
   }
+  if (seatMapFile.value) {
+    fd.append('seat_map', seatMapFile.value)
+  }
+  fd.append('ticket_types', JSON.stringify(seatBlocks.value))
   const res = await axios.post('/events', fd, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -80,6 +138,9 @@ async function createEvent() {
   events.value.push(res.data)
   form.value = { title: '', organizer: '', location: '', start_time: '', end_time: '' }
   imageFile.value = null
+  seatMapFile.value = null
+  seatMapPreview.value = null
+  seatBlocks.value = []
 }
 </script>
 
@@ -110,6 +171,35 @@ async function createEvent() {
   border-radius: 0.5rem;
   padding: 0.4rem 0.8rem;
   cursor: pointer;
+}
+.block-form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  align-items: center;
+}
+.seat-map {
+  position: relative;
+  margin-top: 0.5rem;
+  border: 1px solid #ddd;
+  display: inline-block;
+}
+.seat-image {
+  display: block;
+  max-width: 100%;
+}
+.seat-block {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: rgba(90,154,255,0.8);
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
+  cursor: move;
+  border-radius: 4px;
+  user-select: none;
 }
 .cards {
   display: flex;
