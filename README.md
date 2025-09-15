@@ -63,6 +63,12 @@ npm run dev
 
 浏览器访问 <http://localhost:5173> 即可看到界面。若需构建静态文件，可运行 `npm run build`，输出位于 `frontend/dist`。
 
+如果后端与前端不在同一主机或端口，可在 `frontend/.env` 中设置 `VITE_WS_HOST` 指定 WebSocket 服务地址，例如：
+
+```
+VITE_WS_HOST=localhost:8000
+```
+
 ## 使用流程
 
 1. **注册用户**
