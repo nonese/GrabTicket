@@ -60,6 +60,10 @@ onMounted(() => {
   updateCountdown()
   timer = setInterval(updateCountdown, 1000)
   const token = localStorage.getItem('token')
+  if (!token) {
+    message.value = '请先登录'
+    return
+  }
   axios.get('/users/me', {
     headers: { Authorization: `Bearer ${token}` }
   }).then(res => {
@@ -67,6 +71,14 @@ onMounted(() => {
   })
   const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/events/${props.event.id}?token=${token}`
   ws = new WebSocket(wsUrl)
+  ws.onerror = () => {
+    message.value = '连接服务器失败'
+  }
+  ws.onclose = (evt) => {
+    if (!evt.wasClean) {
+      message.value = '连接已断开'
+    }
+  }
   ws.onmessage = (evt) => {
     const data = JSON.parse(evt.data)
     if (data.type === 'seat_counts') {

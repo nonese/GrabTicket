@@ -37,7 +37,13 @@ async function login() {
     localStorage.setItem('username', username.value)
     emit('logged-in', res.data.access_token)
   } catch (e) {
-    error.value = '登录失败'
+    if (e.response?.data?.detail) {
+      error.value = e.response.data.detail
+    } else if (e.response?.status === 422) {
+      error.value = '请输入用户名和密码'
+    } else {
+      error.value = '登录失败'
+    }
   }
 }
 </script>
