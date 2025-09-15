@@ -1,5 +1,8 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 import asyncio
+import os
+import uuid
+import shutil
 from typing import Dict, Set
 
 from fastapi import (
@@ -9,9 +12,13 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     status,
+    UploadFile,
+    File,
+    Form,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from fastapi.staticfiles import StaticFiles
 
 from . import auth, models, schemas
 from .database import Base, engine, get_db, SessionLocal
@@ -19,6 +26,7 @@ from .database import Base, engine, get_db, SessionLocal
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="GrabTicket API")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -222,8 +230,36 @@ def read_events(db: Session = Depends(get_db)):
 
 
 @app.post("/events", response_model=schemas.Event)
-def create_event(event: schemas.EventBase, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    db_event = models.Event(**event.dict())
+async def create_event(
+    title: str = Form(...),
+    organizer: str = Form(...),
+    location: str = Form(...),
+    start_time: datetime = Form(...),
+    end_time: datetime = Form(...),
+    description: str | None = Form(None),
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    image_path = None
+    if image:
+        os.makedirs("static", exist_ok=True)
+        ext = os.path.splitext(image.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join("static", filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(image.file, buffer)
+        image_path = f"/static/{filename}"
+
+    db_event = models.Event(
+        title=title,
+        organizer=organizer,
+        location=location,
+        description=description,
+        start_time=start_time,
+        end_time=end_time,
+        cover_image=image_path,
+    )
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
