@@ -17,7 +17,7 @@
       <button type="submit">注册</button>
     </form>
     <p v-if="error" class="error">{{ error }}</p>
-    <button @click="$emit('cancel')">返回登录</button>
+    <button class="back" @click="$emit('cancel')">返回登录</button>
   </div>
 </template>
 
@@ -41,7 +41,7 @@ async function register() {
     })
     emit('registered')
   } catch (e) {
-    error.value = '注册失败'
+    error.value = e.response?.data?.detail || '注册失败'
   }
 }
 </script>
@@ -76,6 +76,9 @@ button {
   color: #fff;
   border: none;
   border-radius: 0.5rem;
+}
+.back {
+  margin-top: 0.5rem;
 }
 .error {
   color: red;
