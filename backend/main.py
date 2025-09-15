@@ -60,6 +60,16 @@ async def _handle_grab_request(request: dict) -> None:
     user_id = request["user_id"]
     db = SessionLocal()
     try:
+        event = db.query(models.Event).filter(models.Event.id == event_id).first()
+        if event and datetime.utcnow() < event.sale_start_time:
+            await websocket.send_json(
+                {
+                    "type": "grab_result",
+                    "status": "fail",
+                    "reason": "Ticket sale not started",
+                }
+            )
+            return
         ticket_type = (
             db.query(models.TicketType)
             .filter(
@@ -279,6 +289,7 @@ async def create_event(
     title: str = Form(...),
     organizer: str = Form(...),
     location: str = Form(...),
+    sale_start_time: datetime = Form(...),
     start_time: datetime = Form(...),
     end_time: datetime = Form(...),
     description: str | None = Form(None),
@@ -312,6 +323,7 @@ async def create_event(
         organizer=organizer,
         location=location,
         description=description,
+        sale_start_time=sale_start_time,
         start_time=start_time,
         end_time=end_time,
         cover_image=image_path,
@@ -350,6 +362,11 @@ def read_event(event_id: int, db: Session = Depends(get_db)):
 
 @app.post("/events/{event_id}/tickets", response_model=schemas.Order)
 def grab_ticket(event_id: int, ticket_type_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if datetime.utcnow() < event.sale_start_time:
+        raise HTTPException(status_code=400, detail="Ticket sale not started")
     ticket_type = db.query(models.TicketType).filter(models.TicketType.id == ticket_type_id, models.TicketType.event_id == event_id).with_for_update().first()
     if not ticket_type:
         raise HTTPException(status_code=404, detail="Ticket type not found")

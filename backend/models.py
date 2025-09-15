@@ -24,6 +24,7 @@ class Event(Base):
     organizer = Column(String, nullable=True)
     location = Column(String, nullable=True)
     description = Column(String, nullable=True)
+    sale_start_time = Column(DateTime)
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     seat_map_url = Column(String, nullable=True)

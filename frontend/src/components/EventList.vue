@@ -5,6 +5,7 @@
       <input v-model="form.title" placeholder="活动名称" required />
       <input v-model="form.organizer" placeholder="主办方" required />
       <input v-model="form.location" placeholder="地点" required />
+      <input type="datetime-local" v-model="form.sale_start_time" required />
       <input type="datetime-local" v-model="form.start_time" required />
       <input type="datetime-local" v-model="form.end_time" required />
       <input type="file" @change="onFileChange" />
@@ -52,6 +53,7 @@ const form = ref({
   title: '',
   organizer: '',
   location: '',
+  sale_start_time: '',
   start_time: '',
   end_time: ''
 })
@@ -120,6 +122,7 @@ async function createEvent() {
   fd.append('title', form.value.title)
   fd.append('organizer', form.value.organizer)
   fd.append('location', form.value.location)
+  fd.append('sale_start_time', form.value.sale_start_time)
   fd.append('start_time', form.value.start_time)
   fd.append('end_time', form.value.end_time)
   if (imageFile.value) {
@@ -136,7 +139,7 @@ async function createEvent() {
     }
   })
   events.value.push(res.data)
-  form.value = { title: '', organizer: '', location: '', start_time: '', end_time: '' }
+  form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '', end_time: '' }
   imageFile.value = null
   seatMapFile.value = null
   seatMapPreview.value = null

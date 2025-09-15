@@ -52,6 +52,7 @@ class EventBase(BaseModel):
     organizer: Optional[str] = None
     location: Optional[str] = None
     description: Optional[str] = None
+    sale_start_time: datetime
     start_time: datetime
     end_time: datetime
     seat_map_url: Optional[str] = None
