@@ -53,12 +53,9 @@ let timer
 
 onMounted(() => {
   tickets.value = props.event.ticket_types || []
-  const saleStart = new Date(
-    String(props.event.sale_start_time).replace(' ', 'T')
-  ).getTime()
+  const saleStart = Date.parse(props.event.sale_start_time)
   const updateCountdown = () => {
-    const diff = saleStart - Date.now()
-    timeLeft.value = diff > 0 ? diff : 0
+    timeLeft.value = Math.max(0, saleStart - Date.now())
   }
   updateCountdown()
   timer = setInterval(updateCountdown, 1000)
