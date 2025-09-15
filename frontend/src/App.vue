@@ -15,16 +15,17 @@
     <div v-else-if="view === 'events'">
       <button v-if="isAdmin" class="admin-btn" @click="view = 'admin'">管理账户</button>
       <EventList @select-event="selectEvent" />
-      <EventDetail v-if="currentEvent" :event="currentEvent" />
+      <EventDetail v-if="currentEvent" :event="currentEvent" :key="currentEvent.id" />
     </div>
     <AdminUsers v-else-if="view === 'admin' && isAdmin" @close="view = 'events'" />
     <Modal v-if="showOrders" @close="showOrders = false">
       <h3>抢票记录</h3>
-      <ul>
+      <ul v-if="orders.length">
         <li v-for="o in orders" :key="o.id">
           {{ o.event.title }} - {{ o.ticket_type.seat_type }} - {{ new Date(o.created_at + 'Z').toLocaleString() }}
         </li>
       </ul>
+      <p v-else>暂无抢票记录</p>
     </Modal>
   </div>
 </template>
@@ -67,12 +68,17 @@ function logout() {
 }
 
 async function openOrders() {
-  const token = localStorage.getItem('token')
-  const res = await axios.get('/orders/me', {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  orders.value = res.data
-  showOrders.value = true
+  const tok = localStorage.getItem('token')
+  try {
+    const res = await axios.get('/orders/me', {
+      headers: { Authorization: `Bearer ${tok}` }
+    })
+    orders.value = res.data
+  } catch (e) {
+    orders.value = []
+  } finally {
+    showOrders.value = true
+  }
 }
 </script>
 

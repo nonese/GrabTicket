@@ -10,13 +10,13 @@
         v-for="t in tickets"
         :key="t.id"
         class="ticket-btn"
-        :class="{ active: selected && selected.id === t.id, disabled: !started }"
-        @click="started && (selected = t)"
+        :class="{ active: selected && selected.id === t.id, disabled: !started || t.available_qty === 0 }"
+        @click="started && t.available_qty > 0 && (selected = t)"
       >
         {{ t.seat_type }} ¥{{ t.price }} (剩余{{ t.available_qty }})
       </button>
     </div>
-    <button class="confirm-btn" :disabled="!started || !selected" @click="confirm">
+    <button class="confirm-btn" :disabled="!started || !selected || selected.available_qty === 0" @click="confirm">
       确定
     </button>
     <p v-if="!started">距离开抢还有：{{ formatTime(timeLeft) }}</p>
@@ -76,7 +76,11 @@ onMounted(() => {
       })
       if (selected.value) {
         const matchSel = tickets.value.find(tt => tt.id === selected.value.id)
-        if (matchSel) selected.value = matchSel
+        if (matchSel && matchSel.available_qty > 0) {
+          selected.value = matchSel
+        } else if (matchSel) {
+          selected.value = null
+        }
       }
     } else if (data.type === 'grab_result') {
       if (data.status === 'success') {
