@@ -206,7 +206,11 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed_password = auth.get_password_hash(user.password)
-    db_user = models.User(username=user.username, hashed_password=hashed_password)
+    db_user = models.User(
+        username=user.username,
+        hashed_password=hashed_password,
+        energy_coins=user.energy_coins,
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -222,6 +226,46 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         data={"sub": user.username}, expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return schemas.Token(access_token=access_token)
+
+
+@app.get("/admin/users", response_model=list[schemas.User])
+def admin_list_users(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    users = db.query(models.User).all()
+    return users
+
+
+@app.put("/admin/users/{user_id}/coins", response_model=schemas.User)
+def admin_update_coins(
+    user_id: int,
+    data: schemas.UserUpdateCoins,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.energy_coins = data.energy_coins
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@app.post("/admin/users/{user_id}/reset_password", response_model=schemas.User)
+def admin_reset_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.hashed_password = auth.get_password_hash("123456")
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @app.get("/events", response_model=list[schemas.Event])

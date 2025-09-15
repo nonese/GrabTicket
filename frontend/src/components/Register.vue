@@ -1,13 +1,14 @@
 <template>
   <div class="login">
-    <h2>登录</h2>
-    <form @submit.prevent="login">
-      <input v-model="username" placeholder="用户名" />
-      <input v-model="password" type="password" placeholder="密码" />
-      <button type="submit">登录</button>
+    <h2>注册</h2>
+    <form @submit.prevent="register">
+      <input v-model="username" placeholder="用户名" required />
+      <input v-model="password" type="password" placeholder="密码" required />
+      <input v-model.number="energyCoins" type="number" placeholder="水晶能量币" required />
+      <button type="submit">注册</button>
     </form>
     <p v-if="error" class="error">{{ error }}</p>
-    <p class="switch">还没有账号？<a href="#" @click.prevent="$emit('show-register')">注册</a></p>
+    <button @click="$emit('cancel')">返回登录</button>
   </div>
 </template>
 
@@ -15,22 +16,23 @@
 import { ref } from 'vue'
 import axios from 'axios'
 
-const emit = defineEmits(['logged-in', 'show-register'])
+const emit = defineEmits(['registered', 'cancel'])
 
 const username = ref('')
 const password = ref('')
+const energyCoins = ref(0)
 const error = ref('')
 
-async function login() {
+async function register() {
   try {
-    const form = new URLSearchParams()
-    form.append('username', username.value)
-    form.append('password', password.value)
-    const res = await axios.post('/auth/login', form)
-    localStorage.setItem('token', res.data.access_token)
-    emit('logged-in', res.data.access_token)
+    await axios.post('/auth/register', {
+      username: username.value,
+      password: password.value,
+      energy_coins: energyCoins.value
+    })
+    emit('registered')
   } catch (e) {
-    error.value = '登录失败'
+    error.value = '注册失败'
   }
 }
 </script>

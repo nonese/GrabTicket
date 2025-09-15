@@ -14,6 +14,7 @@ class TokenData(BaseModel):
 
 class UserBase(BaseModel):
     username: str
+    energy_coins: int = 0
 
 
 class UserCreate(UserBase):
@@ -25,6 +26,10 @@ class User(UserBase):
 
     class Config:
         orm_mode = True
+
+
+class UserUpdateCoins(BaseModel):
+    energy_coins: int
 
 
 class TicketTypeBase(BaseModel):
