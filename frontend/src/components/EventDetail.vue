@@ -76,7 +76,11 @@ onMounted(() => {
         message.value = '抢票成功！订单号: ' + data.order_id
       } else {
         const alts = (data.alternatives || []).map(a => `${a.seat_type}(${a.available_qty})`).join(', ')
-        message.value = '抢票失败，座位已满' + (alts ? '，可选：' + alts : '')
+        if (data.reason === 'Tickets sold out') {
+          message.value = '抢票失败，座位已满' + (alts ? '，可选：' + alts : '')
+        } else {
+          message.value = '抢票失败：' + data.reason
+        }
       }
     }
   }
