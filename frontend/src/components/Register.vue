@@ -39,6 +39,7 @@ async function register() {
       password: password.value,
       energy_coins: energyCoins.value
     })
+    alert('注册成功')
     emit('registered')
   } catch (e) {
     error.value = e.response?.data?.detail || '注册失败'

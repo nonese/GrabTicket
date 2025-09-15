@@ -67,6 +67,7 @@ class Event(EventBase):
 
 class Order(BaseModel):
     id: int
+    event: Event
     ticket_type: TicketType
     created_at: datetime
 

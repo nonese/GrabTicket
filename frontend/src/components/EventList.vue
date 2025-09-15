@@ -141,7 +141,7 @@ function addTicket() {
 }
 
 function formatDate(str) {
-  return new Date(str).toLocaleString()
+  return new Date(str + 'Z').toLocaleString()
 }
 
 async function createEvent() {
@@ -150,8 +150,8 @@ async function createEvent() {
   fd.append('title', form.value.title)
   fd.append('organizer', form.value.organizer)
   fd.append('location', form.value.location)
-  fd.append('sale_start_time', form.value.sale_start_time)
-  fd.append('start_time', form.value.start_time)
+  fd.append('sale_start_time', new Date(form.value.sale_start_time).toISOString())
+  fd.append('start_time', new Date(form.value.start_time).toISOString())
   if (imageFile.value) {
     fd.append('image', imageFile.value)
   }
@@ -175,7 +175,7 @@ async function createEvent() {
 
 function toLocalInput(str) {
   if (!str) return ''
-  const d = new Date(str)
+  const d = new Date(str + 'Z')
   const offset = d.getTimezoneOffset()
   const local = new Date(d.getTime() - offset * 60000)
   return local.toISOString().slice(0, 16)
@@ -207,8 +207,8 @@ async function updateEvent() {
   fd.append('title', form.value.title)
   fd.append('organizer', form.value.organizer)
   fd.append('location', form.value.location)
-  fd.append('sale_start_time', form.value.sale_start_time)
-  fd.append('start_time', form.value.start_time)
+  fd.append('sale_start_time', new Date(form.value.sale_start_time).toISOString())
+  fd.append('start_time', new Date(form.value.start_time).toISOString())
   fd.append('ticket_types', JSON.stringify(ticketTypes.value))
   if (form.value.description) fd.append('description', form.value.description)
   if (imageFile.value) fd.append('image', imageFile.value)
