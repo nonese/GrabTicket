@@ -343,8 +343,6 @@ async def create_event(
             price=t.get("price", 0),
             seat_type=t.get("seat_type", ""),
             available_qty=t.get("available_qty", 0),
-            pos_x=t.get("pos_x", 0),
-            pos_y=t.get("pos_y", 0),
         )
         db.add(tt)
     db.commit()

@@ -36,8 +36,6 @@ class TicketTypeBase(BaseModel):
     price: float
     seat_type: str
     available_qty: int
-    pos_x: int
-    pos_y: int
 
 
 class TicketType(TicketTypeBase):

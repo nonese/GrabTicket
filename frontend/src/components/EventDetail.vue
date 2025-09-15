@@ -3,17 +3,21 @@
     <h3>{{ event.title }}</h3>
     <div class="seat-map" v-if="event.seat_map_url">
       <img :src="event.seat_map_url" class="seat-image" />
-      <div
+    </div>
+    <div class="ticket-options">
+      <button
         v-for="t in tickets"
         :key="t.id"
-        class="seat-block"
-        :class="{disabled: !started}"
-        :style="{left: t.pos_x + 'px', top: t.pos_y + 'px'}"
-        @click="started && tryGrab(t)"
+        class="ticket-btn"
+        :class="{ active: selected && selected.id === t.id, disabled: !started }"
+        @click="started && (selected = t)"
       >
-        {{ t.seat_type }}({{ t.available_qty }})
-      </div>
+        {{ t.seat_type }} ¥{{ t.price }} (剩余{{ t.available_qty }})
+      </button>
     </div>
+    <button class="confirm-btn" :disabled="!started || !selected" @click="confirm">
+      确定
+    </button>
     <p v-if="!started">距离开抢还有：{{ formatTime(timeLeft) }}</p>
     <p v-if="message">{{ message }}</p>
   </div>
@@ -30,6 +34,7 @@ const message = ref('')
 const tickets = ref([])
 const timeLeft = ref(0)
 const started = computed(() => timeLeft.value <= 0)
+const selected = ref(null)
 let ws
 let timer
 
@@ -52,6 +57,10 @@ onMounted(() => {
         const match = data.tickets.find(dt => dt.ticket_type_id === t.id)
         return match ? { ...t, available_qty: match.available_qty } : t
       })
+      if (selected.value) {
+        const matchSel = tickets.value.find(tt => tt.id === selected.value.id)
+        if (matchSel) selected.value = matchSel
+      }
     } else if (data.type === 'grab_result') {
       if (data.status === 'success') {
         message.value = '抢票成功！订单号: ' + data.order_id
@@ -72,11 +81,13 @@ function grab(ticketTypeId) {
   ws?.send(JSON.stringify({ action: 'grab', ticket_type_id: ticketTypeId }))
 }
 
-function tryGrab(t) {
+function confirm() {
+  if (!selected.value) return
   if (!started.value) {
     message.value = '未到开抢时间'
     return
   }
+  const t = selected.value
   if (window.confirm(`需要支付${t.price}水晶能量币，是否继续？`)) {
     grab(t.id)
   }
@@ -114,20 +125,38 @@ function formatTime(ms) {
   display: block;
   max-width: 100%;
 }
-.seat-block {
-  position: absolute;
-  width: 50px;
-  height: 50px;
-  background: rgba(90,154,255,0.8);
-  color: #fff;
-  text-align: center;
-  line-height: 50px;
-  cursor: pointer;
-  border-radius: 4px;
-  user-select: none;
+.ticket-options {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
-.disabled {
+.ticket-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  background: #f5f5f5;
+  cursor: pointer;
+}
+.ticket-btn.active {
+  border-color: #ff5f00;
+  background: #ffe8d9;
+}
+.ticket-btn.disabled {
   pointer-events: none;
   opacity: 0.6;
+}
+.confirm-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #ff5f00;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+.confirm-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 </style>
