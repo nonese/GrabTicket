@@ -19,7 +19,16 @@
         {{ t.seat_type }} ¥{{ t.price }} (剩余{{ t.available_qty }})
       </button>
     </div>
-    <button class="confirm-btn" :disabled="!started || !selected || selected.available_qty === 0" @click="confirm">
+    <p v-if="limitOnePerUser" class="limit-info">此活动每个账户限购一张门票</p>
+    <p
+      v-if="limitOnePerUser && hasOrderForEvent"
+      class="limit-info limit-info-warning"
+    >您已抢购过该活动的门票，无法再次下单</p>
+    <button
+      class="confirm-btn"
+      :disabled="!started || !selected || selected.available_qty === 0 || (limitOnePerUser && hasOrderForEvent)"
+      @click="confirm"
+    >
       确定
     </button>
     <p v-if="!started">距离开抢还有：{{ formatTime(timeLeft) }}</p>
@@ -66,6 +75,7 @@ const message = ref('')
 const tickets = ref([])
 const timeLeft = ref(0)
 const started = computed(() => timeLeft.value <= 0)
+const limitOnePerUser = computed(() => !!props.event.limit_one_ticket_per_user)
 const selected = ref(null)
 const showConfirm = ref(false)
 const coins = ref(0)
@@ -73,6 +83,7 @@ const showEditCoins = ref(false)
 const editCoinsValue = ref('')
 const editCoinsError = ref('')
 const updatingCoins = ref(false)
+const hasOrderForEvent = ref(false)
 let ws
 let timer
 
@@ -89,11 +100,15 @@ onMounted(() => {
     message.value = '请先登录'
     return
   }
+  hasOrderForEvent.value = false
   axios.get('/users/me', {
     headers: { Authorization: `Bearer ${token}` }
   }).then(res => {
     coins.value = res.data.energy_coins
   })
+  if (limitOnePerUser.value) {
+    checkExistingOrder(token)
+  }
   // Allow the websocket host to be configured via VITE_WS_HOST so the
   // connection works when the frontend and backend run on different hosts or
   // ports. If the variable is not set we fall back to the current location.
@@ -128,12 +143,18 @@ onMounted(() => {
       if (data.status === 'success') {
         message.value = '抢票成功！订单号: ' + data.order_id
         coins.value -= selected.value.price
+        if (limitOnePerUser.value) {
+          hasOrderForEvent.value = true
+        }
       } else {
         const alts = (data.alternatives || []).map(a => `${a.seat_type}(${a.available_qty})`).join(', ')
         if (data.reason === '座位已满') {
           message.value = '抢票失败，座位已满' + (alts ? '，可选：' + alts : '')
         } else {
           message.value = '抢票失败：' + data.reason
+        }
+        if (data.reason === '已达到限购数量') {
+          hasOrderForEvent.value = true
         }
       }
     }
@@ -155,10 +176,18 @@ function confirm() {
     message.value = '未到开抢时间'
     return
   }
+  if (limitOnePerUser.value && hasOrderForEvent.value) {
+    message.value = '您已抢购过该活动的门票，无法再次下单'
+    return
+  }
   showConfirm.value = true
 }
 
 function doGrab() {
+  if (limitOnePerUser.value && hasOrderForEvent.value) {
+    message.value = '您已抢购过该活动的门票，无法再次下单'
+    return
+  }
   const t = selected.value
   showConfirm.value = false
   grab(t.id)
@@ -170,6 +199,21 @@ function formatTime(ms) {
   const m = Math.floor((total % 3600) / 60)
   const s = total % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+async function checkExistingOrder(token) {
+  try {
+    const res = await axios.get('/orders/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const orderList = Array.isArray(res.data) ? res.data : []
+    hasOrderForEvent.value = orderList.some(o => {
+      const eventId = o?.event?.id ?? o?.event_id ?? o?.eventId
+      return eventId === props.event.id
+    })
+  } catch (error) {
+    hasOrderForEvent.value = false
+  }
 }
 
 function openEditCoins() {
@@ -342,5 +386,13 @@ async function submitEditCoins() {
 }
 .modal-actions button.secondary:disabled {
   background: #9CA3AF;
+}
+.limit-info {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #4B5563;
+}
+.limit-info-warning {
+  color: #DC2626;
 }
 </style>

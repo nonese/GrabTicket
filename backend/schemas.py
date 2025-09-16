@@ -55,6 +55,7 @@ class EventBase(BaseModel):
     end_time: Optional[datetime] = None
     seat_map_url: Optional[str] = None
     cover_image: Optional[str] = None
+    limit_one_ticket_per_user: bool = False
 
 
 class Event(EventBase):

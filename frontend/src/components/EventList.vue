@@ -41,23 +41,39 @@
           <input type="file" @change="onSeatMapChange" />
         </label>
       </div>
+      <div class="field field-checkbox">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="form.limit_one_ticket_per_user" />
+          每个账户限购一张
+        </label>
+        <span class="checkbox-hint">开启后，同一账户只能抢购一张门票</span>
+      </div>
       <div class="block-form">
         <label>票档名称
           <input v-model="newTicket.seat_type" />
         </label>
         <label>价格
-          <input type="number" v-model.number="newTicket.price" />
+          <input type="number" min="0" step="0.01" v-model.number="newTicket.price" />
         </label>
         <label>数量
-          <input type="number" v-model.number="newTicket.available_qty" />
+          <input type="number" min="0" v-model.number="newTicket.available_qty" />
         </label>
         <button type="button" @click="addTicket">添加票档</button>
       </div>
-      <ul class="ticket-list" v-if="ticketTypes.length">
-        <li v-for="(t, idx) in ticketTypes" :key="idx">
-          {{ t.seat_type }} - ¥{{ t.price }} - {{ t.available_qty }}张
-        </li>
-      </ul>
+      <div class="ticket-editor" v-if="ticketTypes.length">
+        <div class="ticket-editor-row ticket-editor-header">
+          <span>票档名称</span>
+          <span>价格</span>
+          <span>数量</span>
+          <span class="ticket-editor-actions">操作</span>
+        </div>
+        <div class="ticket-editor-row" v-for="(t, idx) in ticketTypes" :key="idx">
+          <input v-model="t.seat_type" placeholder="票档名称" />
+          <input type="number" min="0" step="0.01" v-model.number="t.price" />
+          <input type="number" min="0" v-model.number="t.available_qty" />
+          <button type="button" class="remove-ticket-btn" @click="removeTicket(idx)">删除</button>
+        </div>
+      </div>
       <div class="seat-map" v-if="seatMapPreview">
         <img :src="seatMapPreview" class="seat-image" />
       </div>
@@ -104,7 +120,7 @@ const form = ref({
   location: '',
   sale_start_time: '',
   start_time: '',
-  
+  limit_one_ticket_per_user: false
 })
 const imageFile = ref(null)
 const seatMapFile = ref(null)
@@ -147,6 +163,11 @@ function addTicket() {
   newTicket.value = { seat_type: '', price: 0, available_qty: 0 }
 }
 
+function removeTicket(index) {
+  if (index < 0 || index >= ticketTypes.value.length) return
+  ticketTypes.value.splice(index, 1)
+}
+
 function formatDate(str) {
   return new Date(str + 'Z').toLocaleString()
 }
@@ -159,6 +180,7 @@ async function createEvent() {
   fd.append('location', form.value.location)
   fd.append('sale_start_time', new Date(form.value.sale_start_time).toISOString())
   fd.append('start_time', new Date(form.value.start_time).toISOString())
+  fd.append('limit_one_ticket_per_user', form.value.limit_one_ticket_per_user ? 'true' : 'false')
   if (imageFile.value) {
     fd.append('image', imageFile.value)
   }
@@ -173,7 +195,14 @@ async function createEvent() {
     }
   })
   events.value.push(res.data)
-  form.value = { title: '', organizer: '', location: '', sale_start_time: '', start_time: '' }
+  form.value = {
+    title: '',
+    organizer: '',
+    location: '',
+    sale_start_time: '',
+    start_time: '',
+    limit_one_ticket_per_user: false
+  }
   imageFile.value = null
   seatMapFile.value = null
   seatMapPreview.value = null
@@ -196,6 +225,7 @@ function startEdit(event) {
     location: event.location || '',
     sale_start_time: toLocalInput(event.sale_start_time),
     start_time: toLocalInput(event.start_time),
+    limit_one_ticket_per_user: !!event.limit_one_ticket_per_user,
   }
   ticketTypes.value = event.ticket_types.map(t => ({
     seat_type: t.seat_type,
@@ -238,6 +268,7 @@ async function updateEvent() {
   fd.append('location', form.value.location)
   fd.append('sale_start_time', new Date(form.value.sale_start_time).toISOString())
   fd.append('start_time', new Date(form.value.start_time).toISOString())
+  fd.append('limit_one_ticket_per_user', form.value.limit_one_ticket_per_user ? 'true' : 'false')
   fd.append('ticket_types', JSON.stringify(ticketTypes.value))
   if (form.value.description) fd.append('description', form.value.description)
   if (imageFile.value) fd.append('image', imageFile.value)
@@ -261,7 +292,7 @@ function cancelEdit() {
     location: '',
     sale_start_time: '',
     start_time: '',
-    
+    limit_one_ticket_per_user: false
   }
   imageFile.value = null
   seatMapFile.value = null
@@ -307,6 +338,27 @@ function cancelEdit() {
   padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
+.field.field-checkbox {
+  flex: 1 1 100%;
+  padding: 0.4rem 0;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+.checkbox-hint {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #6B7280;
+}
 .block-form {
   display: flex;
   gap: 0.5rem;
@@ -324,6 +376,49 @@ function cancelEdit() {
   border: 1px solid #ccc;
   border-radius: 0.3rem;
 }
+.ticket-editor {
+  width: 100%;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.ticket-editor-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr auto;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  align-items: center;
+}
+
+.ticket-editor-header {
+  background: #F9FAFB;
+  font-weight: 600;
+}
+
+.ticket-editor-row input {
+  padding: 0.3rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.3rem;
+}
+
+.ticket-editor-actions {
+  text-align: center;
+}
+
+.remove-ticket-btn {
+  background: #DC2626;
+  color: #fff;
+  border: none;
+  border-radius: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.remove-ticket-btn:hover {
+  background: #B91C1C;
+}
 .seat-map {
   position: relative;
   margin-top: 0.5rem;
@@ -333,14 +428,6 @@ function cancelEdit() {
 .seat-image {
   display: block;
   max-width: 100%;
-}
-.ticket-list {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0 0 0;
-}
-.ticket-list li {
-  margin-bottom: 0.25rem;
 }
 .cards {
   display: flex;
