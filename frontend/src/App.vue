@@ -1,7 +1,19 @@
 <template>
   <div class="container">
     <button v-if="token" class="logout-btn" @click="logout">退出登录</button>
-    <button v-if="view === 'events'" class="orders-btn" @click="openOrders">我的抢票</button>
+    <div v-if="view === 'events'" class="top-right-actions">
+      <button class="orders-btn" @click="openOrders">我的抢票</button>
+      <button
+        v-if="isAdmin"
+        class="admin-btn"
+        @click="view = 'admin-users'"
+      >账户管理</button>
+      <button
+        v-if="isAdmin"
+        class="admin-orders-btn"
+        @click="view = 'admin-orders'"
+      >抢票记录</button>
+    </div>
     <Login
       v-if="view === 'login'"
       @logged-in="onLoggedIn"
@@ -13,16 +25,6 @@
       @cancel="view = 'login'"
     />
     <div v-else-if="view === 'events'">
-      <button
-        v-if="isAdmin"
-        class="admin-btn"
-        @click="view = 'admin-users'"
-      >账户管理</button>
-      <button
-        v-if="isAdmin"
-        class="admin-orders-btn"
-        @click="view = 'admin-orders'"
-      >抢票记录</button>
       <EventList @select-event="selectEvent" />
       <EventDetail v-if="currentEvent" :event="currentEvent" :key="currentEvent.id" />
     </div>
@@ -127,38 +129,32 @@ function formatOrderDate(value) {
   text-align: center;
   position: relative;
 }
-.orders-btn {
+.top-right-actions {
   position: absolute;
+  top: 1rem;
   right: 1rem;
-  top: 3.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+.orders-btn,
+.admin-btn,
+.admin-orders-btn {
   padding: 0.3rem 0.6rem;
   border: none;
   border-radius: 0.3rem;
-  background: #10B981;
   color: #fff;
   cursor: pointer;
+}
+.orders-btn {
+  background: #10B981;
 }
 .admin-btn {
-  position: absolute;
-  right: 1rem;
-  top: 1rem;
-  padding: 0.3rem 0.6rem;
-  border: none;
-  border-radius: 0.3rem;
   background: #4F46E5;
-  color: #fff;
-  cursor: pointer;
 }
 .admin-orders-btn {
-  position: absolute;
-  right: 1rem;
-  top: 2.4rem;
-  padding: 0.3rem 0.6rem;
-  border: none;
-  border-radius: 0.3rem;
   background: #2563EB;
-  color: #fff;
-  cursor: pointer;
 }
 .logout-btn {
   position: absolute;
