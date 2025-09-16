@@ -70,6 +70,7 @@ class Order(BaseModel):
     event: Event
     ticket_type: TicketType
     created_at: datetime
+    user: Optional[User] = None
 
     class Config:
         orm_mode = True
