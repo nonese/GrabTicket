@@ -17,6 +17,7 @@
           <td>{{ u.energy_coins }}</td>
           <td>
             <button @click="openModify(u)">修改</button>
+            <button class="danger" @click="deleteUser(u)">删除</button>
           </td>
         </tr>
       </tbody>
@@ -70,16 +71,49 @@ onMounted(loadUsers)
 
 async function loadUsers() {
   const token = localStorage.getItem('token')
-  const res = await axios.get('/admin/users', {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  users.value = res.data
+  try {
+    const res = await axios.get('/admin/users', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    let rawUsers = res.data
+    if (typeof rawUsers === 'string') {
+      try {
+        rawUsers = JSON.parse(rawUsers)
+      } catch (e) {
+        rawUsers = []
+      }
+    }
+    const data = Array.isArray(rawUsers)
+      ? rawUsers
+      : Array.isArray(rawUsers?.users)
+        ? rawUsers.users
+        : []
+    users.value = data.filter(
+      (user) => user && typeof user.id === 'number' && typeof user.username === 'string'
+    )
+    currentPage.value = 1
+  } catch (error) {
+    users.value = []
+    currentPage.value = 1
+    message.value = error.response?.data?.detail ?? '加载用户列表失败'
+    showMessage.value = true
+  }
 }
 
 function openModify(user) {
   currentUser.value = user
   newCoins.value = user.energy_coins
   showEditor.value = true
+}
+
+function ensureCurrentPageInRange() {
+  const total = totalPages.value
+  if (currentPage.value > total) {
+    currentPage.value = total
+  }
+  if (currentPage.value < 1) {
+    currentPage.value = 1
+  }
 }
 
 function nextPage() {
@@ -104,6 +138,25 @@ async function submitModify() {
   showEditor.value = false
   message.value = '已更新能量币并重置密码为123456'
   showMessage.value = true
+}
+
+async function deleteUser(user) {
+  if (!confirm(`确定要删除用户 ${user.username} 吗？`)) {
+    return
+  }
+  const token = localStorage.getItem('token')
+  try {
+    await axios.delete(`/admin/users/${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    users.value = users.value.filter((u) => u.id !== user.id)
+    ensureCurrentPageInRange()
+    message.value = '已删除用户'
+  } catch (error) {
+    message.value = error.response?.data?.detail ?? '删除用户失败'
+  } finally {
+    showMessage.value = true
+  }
 }
 </script>
 
@@ -133,6 +186,14 @@ button {
   background: #4F46E5;
   color: #fff;
   cursor: pointer;
+}
+
+button.danger {
+  background: #dc2626;
+}
+
+button.danger:hover {
+  background: #b91c1c;
 }
 
 .pagination {
