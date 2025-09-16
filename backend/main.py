@@ -19,6 +19,7 @@ from fastapi import (
     UploadFile,
     File,
     Form,
+    Response,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload
@@ -671,6 +672,38 @@ async def update_event(
     db.commit()
     db.refresh(event)
     return event
+
+
+@app.delete("/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="只有管理员可以删除活动")
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="活动不存在")
+
+    def _remove_static_file(path: str | None) -> None:
+        if not path:
+            return
+        file_path = path.lstrip("/")
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+
+    db.query(models.Order).filter(models.Order.event_id == event_id).delete(synchronize_session=False)
+    db.query(models.TicketType).filter(models.TicketType.event_id == event_id).delete(synchronize_session=False)
+    _remove_static_file(event.cover_image)
+    _remove_static_file(event.seat_map_url)
+    db.delete(event)
+    db.commit()
+    event_connections.pop(event_id, None)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.post("/events/{event_id}/tickets", response_model=schemas.Order)

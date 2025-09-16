@@ -77,11 +77,16 @@
           <p>{{ formatDate(event.start_time) }}</p>
           <p>{{ event.location }}</p>
         </div>
-        <button
-          v-if="isAdmin"
-          class="edit-btn"
-          @click.stop="startEdit(event)"
-        >编辑</button>
+        <div v-if="isAdmin" class="card-actions">
+          <button
+            class="edit-btn"
+            @click.stop="startEdit(event)"
+          >编辑</button>
+          <button
+            class="delete-btn"
+            @click.stop="deleteEventItem(event)"
+          >删除</button>
+        </div>
       </div>
     </div>
   </div>
@@ -108,6 +113,7 @@ const ticketTypes = ref([])
 const newTicket = ref({ seat_type: '', price: 0, available_qty: 0 })
 const isAdmin = localStorage.getItem('username') === 'admin'
 const editingId = ref(null)
+const selectedEventId = ref(null)
 
 onMounted(loadEvents)
 
@@ -120,6 +126,7 @@ async function loadEvents() {
 }
 
 function select(event) {
+  selectedEventId.value = event?.id ?? null
   emit('select-event', event)
 }
 
@@ -198,6 +205,28 @@ function startEdit(event) {
   seatMapPreview.value = event.seat_map_url || null
   imageFile.value = null
   seatMapFile.value = null
+}
+
+async function deleteEventItem(event) {
+  if (!event || !confirm(`确定要删除活动 ${event.title} 吗？`)) {
+    return
+  }
+  const token = localStorage.getItem('token')
+  try {
+    await axios.delete(`/events/${event.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    events.value = events.value.filter((e) => e.id !== event.id)
+    if (editingId.value === event.id) {
+      cancelEdit()
+    }
+    if (selectedEventId.value === event.id) {
+      selectedEventId.value = null
+      emit('select-event', null)
+    }
+  } catch (error) {
+    alert(error.response?.data?.detail ?? '删除活动失败')
+  }
 }
 
 async function updateEvent() {
@@ -343,14 +372,35 @@ function cancelEdit() {
   margin: 0;
   font-size: 0.9rem;
 }
-.edit-btn {
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
   margin: 0.5rem;
+}
+
+.card-actions button {
+  flex: 1 1 auto;
   padding: 0.3rem 0.6rem;
   border: none;
   border-radius: 0.3rem;
-  background: #4F46E5;
   color: #fff;
   cursor: pointer;
+}
+
+.card-actions .edit-btn {
+  background: #4F46E5;
+}
+
+.card-actions .edit-btn:hover {
+  background: #4338ca;
+}
+
+.card-actions .delete-btn {
+  background: #dc2626;
+}
+
+.card-actions .delete-btn:hover {
+  background: #b91c1c;
 }
 </style>
 
