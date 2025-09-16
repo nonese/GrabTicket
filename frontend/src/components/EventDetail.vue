@@ -1,7 +1,10 @@
 <template>
   <div class="event-detail">
     <h3>{{ event.title }}</h3>
-    <p>当前能量币：{{ coins }}</p>
+    <div class="coin-info">
+      <span>当前能量币：{{ coins }}</span>
+      <button class="edit-coins-btn" @click="openEditCoins">修改能量币</button>
+    </div>
     <div class="seat-map" v-if="event.seat_map_url">
       <img :src="event.seat_map_url" class="seat-image" />
     </div>
@@ -26,7 +29,25 @@
       <p>需要支付{{ selected.price }}水晶能量币，是否继续？</p>
       <div class="modal-actions">
         <button @click="doGrab">确认</button>
-        <button @click="showConfirm = false">取消</button>
+        <button class="secondary" @click="showConfirm = false">取消</button>
+      </div>
+    </Modal>
+    <Modal v-if="showEditCoins" @close="closeEditCoins">
+      <h4>修改能量币</h4>
+      <div class="edit-coins-form">
+        <label for="coin-input">新的能量币数量</label>
+        <input
+          id="coin-input"
+          type="number"
+          min="0"
+          v-model="editCoinsValue"
+          :disabled="updatingCoins"
+        />
+        <p v-if="editCoinsError" class="edit-coins-error">{{ editCoinsError }}</p>
+        <div class="modal-actions">
+          <button @click="submitEditCoins" :disabled="updatingCoins">保存</button>
+          <button class="secondary" @click="closeEditCoins" :disabled="updatingCoins">取消</button>
+        </div>
       </div>
     </Modal>
   </div>
@@ -48,6 +69,10 @@ const started = computed(() => timeLeft.value <= 0)
 const selected = ref(null)
 const showConfirm = ref(false)
 const coins = ref(0)
+const showEditCoins = ref(false)
+const editCoinsValue = ref('')
+const editCoinsError = ref('')
+const updatingCoins = ref(false)
 let ws
 let timer
 
@@ -146,6 +171,55 @@ function formatTime(ms) {
   const s = total % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
+
+function openEditCoins() {
+  editCoinsValue.value = coins.value != null ? String(coins.value) : '0'
+  editCoinsError.value = ''
+  showEditCoins.value = true
+}
+
+function closeEditCoins() {
+  if (updatingCoins.value) return
+  showEditCoins.value = false
+  editCoinsError.value = ''
+}
+
+async function submitEditCoins() {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    editCoinsError.value = '请先登录后再修改能量币'
+    return
+  }
+  const trimmed = (editCoinsValue.value ?? '').toString().trim()
+  if (!trimmed) {
+    editCoinsError.value = '请输入能量币数量'
+    return
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    editCoinsError.value = '请输入不小于0的整数'
+    return
+  }
+  const parsed = Number.parseInt(trimmed, 10)
+  updatingCoins.value = true
+  editCoinsError.value = ''
+  try {
+    const res = await axios.put(
+      '/users/me/coins',
+      { energy_coins: parsed },
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+    coins.value = res.data.energy_coins
+    message.value = '能量币已更新'
+    showEditCoins.value = false
+  } catch (err) {
+    const detail = err?.response?.data?.detail
+    editCoinsError.value = detail || '更新失败，请稍后再试'
+  } finally {
+    updatingCoins.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -217,5 +291,56 @@ function formatTime(ms) {
   background: #4F46E5;
   color: #fff;
   cursor: pointer;
+}
+.coin-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+}
+.edit-coins-btn {
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: #2563EB;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.edit-coins-btn:hover {
+  background: #1D4ED8;
+}
+.edit-coins-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.3);
+}
+.edit-coins-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 240px;
+}
+.edit-coins-form input {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #D1D5DB;
+  border-radius: 0.3rem;
+}
+.edit-coins-form input:disabled {
+  background: #F3F4F6;
+}
+.edit-coins-error {
+  color: #DC2626;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.modal-actions button.secondary {
+  background: #6B7280;
+}
+.modal-actions button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.modal-actions button.secondary:disabled {
+  background: #9CA3AF;
 }
 </style>
