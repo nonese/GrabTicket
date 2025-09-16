@@ -316,6 +316,26 @@ def admin_reset_password(
     return user
 
 
+@app.delete("/admin/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="无法删除当前登录用户")
+    if user.username == "admin":
+        raise HTTPException(status_code=400, detail="无法删除默认管理员账号")
+    db.query(models.Order).filter(models.Order.user_id == user_id).delete(
+        synchronize_session=False
+    )
+    db.delete(user)
+    db.commit()
+
+
 @app.get("/events", response_model=list[schemas.Event])
 def read_events(db: Session = Depends(get_db)):
     events = db.query(models.Event).all()
