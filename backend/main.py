@@ -423,6 +423,23 @@ def read_current_user(current_user: models.User = Depends(get_current_user)):
     return current_user
 
 
+@app.put("/users/me/coins", response_model=schemas.User)
+def update_current_user_coins(
+    data: schemas.UserUpdateCoins,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if data.energy_coins < 0:
+        raise HTTPException(status_code=400, detail="能量币不能为负数")
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    user.energy_coins = data.energy_coins
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @app.get("/admin/users", response_model=list[schemas.User])
 def admin_list_users(
     db: Session = Depends(get_db),
