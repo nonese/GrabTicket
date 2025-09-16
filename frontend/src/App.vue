@@ -22,7 +22,7 @@
       <h3>抢票记录</h3>
       <ul v-if="orders.length">
         <li v-for="o in orders" :key="o.id">
-          {{ o.event.title }} - {{ o.ticket_type.seat_type }} - {{ new Date(o.created_at + 'Z').toLocaleString() }}
+          {{ o.eventTitle }} - {{ o.ticketTypeLabel }} - {{ o.createdAtLabel }}
         </li>
       </ul>
       <p v-else-if="loadingOrders">加载中...</p>
@@ -78,12 +78,116 @@ async function openOrders() {
     const res = await axios.get('/orders/me', {
       headers: { Authorization: `Bearer ${tok}` }
     })
-    orders.value = res.data
+    orders.value = normalizeOrders(res.data)
   } catch (e) {
     orders.value = []
   } finally {
     loadingOrders.value = false
   }
+}
+
+function formatOrderDate(value) {
+  if (!value && value !== 0) return '--'
+  let date
+  if (typeof value === 'number') {
+    const ts = value < 1e12 ? value * 1000 : value
+    date = new Date(ts)
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return '--'
+    const isoLike = trimmed.replace(' ', 'T')
+    const hasTimezone = /(Z|[+-]\d{2}:?\d{2})$/i.test(trimmed)
+    const candidate = hasTimezone
+      ? isoLike
+      : `${isoLike}${isoLike.endsWith('Z') ? '' : 'Z'}`
+    date = new Date(candidate)
+    if (Number.isNaN(date.getTime())) {
+      date = new Date(isoLike)
+    }
+    if (Number.isNaN(date.getTime())) {
+      date = new Date(trimmed)
+    }
+  } else if (value instanceof Date) {
+    date = value
+  } else {
+    return '--'
+  }
+  return Number.isNaN(date.getTime()) ? '--' : date.toLocaleString()
+}
+
+function normalizeOrders(list) {
+  if (!Array.isArray(list)) {
+    return []
+  }
+  return list
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => {
+      const order = { ...item }
+      const createdAtSource =
+        order.created_at ?? order.createdAt ?? order.created_at_value ?? order.createdat
+      return {
+        ...order,
+        eventTitle: getOrderEventTitle(order),
+        ticketTypeLabel: getOrderTicketTypeLabel(order),
+        createdAtLabel: formatOrderDate(createdAtSource)
+      }
+    })
+}
+
+function getOrderEventTitle(order) {
+  const event = order?.event
+  if (event) {
+    if (isNonEmptyString(event.title)) {
+      return event.title.trim()
+    }
+    if (isNonEmptyString(event.name)) {
+      return event.name.trim()
+    }
+  }
+  const fallbackKeys = ['event_title', 'eventTitle', 'title']
+  for (const key of fallbackKeys) {
+    if (isNonEmptyString(order?.[key])) {
+      return order[key].trim()
+    }
+  }
+  return '未知活动'
+}
+
+function getOrderTicketTypeLabel(order) {
+  const ticketType = order?.ticket_type
+  if (ticketType) {
+    if (isNonEmptyString(ticketType.seat_type)) {
+      return ticketType.seat_type.trim()
+    }
+    if (isNonEmptyString(ticketType.name)) {
+      return ticketType.name.trim()
+    }
+    if (isNonEmptyString(ticketType.label)) {
+      return ticketType.label.trim()
+    }
+  }
+  if (isNonEmptyString(order?.ticket_type)) {
+    return order.ticket_type.trim()
+  }
+  const fallbackKeys = [
+    'ticket_type_name',
+    'ticketTypeName',
+    'seat_type',
+    'seatType',
+    'ticketType',
+    'ticket_name',
+    'ticketName'
+  ]
+  for (const key of fallbackKeys) {
+    if (isNonEmptyString(order?.[key])) {
+      return order[key].trim()
+    }
+  }
+  return '未知票档'
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0
 }
 </script>
 
