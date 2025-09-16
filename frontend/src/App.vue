@@ -13,11 +13,21 @@
       @cancel="view = 'login'"
     />
     <div v-else-if="view === 'events'">
-      <button v-if="isAdmin" class="admin-btn" @click="view = 'admin'">管理账户</button>
+      <button
+        v-if="isAdmin"
+        class="admin-btn"
+        @click="view = 'admin-users'"
+      >账户管理</button>
+      <button
+        v-if="isAdmin"
+        class="admin-orders-btn"
+        @click="view = 'admin-orders'"
+      >抢票记录</button>
       <EventList @select-event="selectEvent" />
       <EventDetail v-if="currentEvent" :event="currentEvent" :key="currentEvent.id" />
     </div>
-    <AdminUsers v-else-if="view === 'admin' && isAdmin" @close="view = 'events'" />
+    <AdminUsers v-else-if="view === 'admin-users' && isAdmin" @close="view = 'events'" />
+    <AdminOrders v-else-if="view === 'admin-orders' && isAdmin" @close="view = 'events'" />
     <Modal v-if="showOrders" @close="showOrders = false">
       <h3>抢票记录</h3>
       <ul v-if="orders.length">
@@ -39,6 +49,7 @@ import Register from './components/Register.vue'
 import EventList from './components/EventList.vue'
 import EventDetail from './components/EventDetail.vue'
 import AdminUsers from './components/AdminUsers.vue'
+import AdminOrders from './components/AdminOrders.vue'
 import Modal from './components/Modal.vue'
 
 const token = ref(localStorage.getItem('token'))
@@ -135,6 +146,17 @@ function formatOrderDate(value) {
   border: none;
   border-radius: 0.3rem;
   background: #4F46E5;
+  color: #fff;
+  cursor: pointer;
+}
+.admin-orders-btn {
+  position: absolute;
+  right: 1rem;
+  top: 2.4rem;
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: #2563EB;
   color: #fff;
   cursor: pointer;
 }
