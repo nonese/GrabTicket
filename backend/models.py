@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -29,6 +29,7 @@ class Event(Base):
     end_time = Column(DateTime)
     seat_map_url = Column(String, nullable=True)
     cover_image = Column(String, nullable=True)
+    limit_one_ticket_per_user = Column(Boolean, default=False)
 
     ticket_types = relationship("TicketType", back_populates="event")
     orders = relationship("Order", back_populates="event")

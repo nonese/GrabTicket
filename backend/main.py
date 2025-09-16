@@ -22,6 +22,7 @@ from fastapi import (
     Response,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
@@ -30,6 +31,20 @@ from . import auth, models, schemas
 from .database import Base, engine, get_db, SessionLocal
 
 Base.metadata.create_all(bind=engine)
+
+# Ensure newly added columns exist for older SQLite databases
+if engine.dialect.name == "sqlite":
+    with engine.begin() as conn:
+        existing_columns = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(events)"))
+        }
+        if "limit_one_ticket_per_user" not in existing_columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE events ADD COLUMN limit_one_ticket_per_user "
+                    "BOOLEAN DEFAULT 0"
+                )
+            )
 
 app = FastAPI(title="GrabTicket API")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -220,7 +235,16 @@ async def _handle_grab_request(request: dict) -> None:
     db = SessionLocal()
     try:
         event = db.query(models.Event).filter(models.Event.id == event_id).first()
-        if event and datetime.utcnow() < event.sale_start_time:
+        if not event:
+            await websocket.send_json(
+                {
+                    "type": "grab_result",
+                    "status": "fail",
+                    "reason": "活动不存在",
+                }
+            )
+            return
+        if datetime.utcnow() < event.sale_start_time:
             await websocket.send_json(
                 {
                     "type": "grab_result",
@@ -229,6 +253,24 @@ async def _handle_grab_request(request: dict) -> None:
                 }
             )
             return
+        if event.limit_one_ticket_per_user:
+            existing_order = (
+                db.query(models.Order)
+                .filter(
+                    models.Order.event_id == event_id,
+                    models.Order.user_id == user_id,
+                )
+                .first()
+            )
+            if existing_order:
+                await websocket.send_json(
+                    {
+                        "type": "grab_result",
+                        "status": "fail",
+                        "reason": "已达到限购数量",
+                    }
+                )
+                return
         ticket_type = (
             db.query(models.TicketType)
             .filter(
@@ -562,6 +604,7 @@ async def create_event(
     start_time: datetime = Form(...),
     end_time: datetime | None = Form(None),
     description: str | None = Form(None),
+    limit_one_ticket_per_user: bool = Form(False),
     image: UploadFile | None = File(None),
     seat_map: UploadFile | None = File(None),
     ticket_types: str = Form("[]"),
@@ -599,6 +642,7 @@ async def create_event(
         end_time=end_time,
         cover_image=image_path,
         seat_map_url=seat_map_path,
+        limit_one_ticket_per_user=limit_one_ticket_per_user,
     )
     db.add(db_event)
     db.commit()
@@ -639,6 +683,7 @@ async def update_event(
     start_time: datetime = Form(...),
     end_time: datetime | None = Form(None),
     description: str | None = Form(None),
+    limit_one_ticket_per_user: bool = Form(False),
     image: UploadFile | None = File(None),
     seat_map: UploadFile | None = File(None),
     ticket_types: str = Form("[]"),
@@ -673,6 +718,7 @@ async def update_event(
     event.sale_start_time = sale_start_time
     event.start_time = start_time
     event.end_time = end_time
+    event.limit_one_ticket_per_user = limit_one_ticket_per_user
     db.query(models.TicketType).filter(models.TicketType.event_id == event.id).delete()
     try:
         tts = json.loads(ticket_types)
@@ -735,6 +781,17 @@ def grab_ticket(
         raise HTTPException(status_code=404, detail="活动不存在")
     if datetime.utcnow() < event.sale_start_time:
         raise HTTPException(status_code=400, detail="抢票尚未开始")
+    if event.limit_one_ticket_per_user:
+        existing_order = (
+            db.query(models.Order)
+            .filter(
+                models.Order.event_id == event_id,
+                models.Order.user_id == current_user.id,
+            )
+            .first()
+        )
+        if existing_order:
+            raise HTTPException(status_code=400, detail="已达到限购数量")
     ticket_type = (
         db.query(models.TicketType)
         .filter(
