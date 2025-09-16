@@ -64,7 +64,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_root = "static"
+app.mount("/static", StaticFiles(directory=static_root), name="static")
+
+assets_dir = os.path.join(static_root, "assets")
+if os.path.isdir(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
