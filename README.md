@@ -47,6 +47,7 @@ export default defineConfig({
     proxy: {
       '/auth': 'http://localhost:8000',
       '/events': 'http://localhost:8000',
+      '/orders': 'http://localhost:8000',
       '/ws': { target: 'ws://localhost:8000', ws: true }
     }
   }
