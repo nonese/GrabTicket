@@ -22,6 +22,7 @@ from fastapi import (
     Response,
 )
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +48,22 @@ if engine.dialect.name == "sqlite":
             )
 
 app = FastAPI(title="GrabTicket API")
+
+cors_origins = os.getenv("BACKEND_CORS_ORIGINS")
+if cors_origins:
+    allow_origins = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
+else:
+    allow_origins = ["*"]
+
+allow_credentials = allow_origins != ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")

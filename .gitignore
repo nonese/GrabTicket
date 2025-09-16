@@ -5,4 +5,5 @@ app.db
 node_modules/
 .env
 frontend/dist/
+data/
 
