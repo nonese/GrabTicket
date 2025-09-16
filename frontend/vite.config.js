@@ -9,6 +9,7 @@ export default defineConfig({
       '/auth': 'http://localhost:8000',
       '/events': 'http://localhost:8000',
       '/orders': 'http://localhost:8000',
+      '/admin': 'http://localhost:8000',
       '/users': 'http://localhost:8000',
       '/static': 'http://localhost:8000',
       '/ws': {
