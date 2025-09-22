@@ -69,7 +69,7 @@ class Event(EventBase):
 class Order(BaseModel):
     id: int
     event: Event
-    ticket_type: TicketType
+    ticket_type: Optional[TicketType] = None
     created_at: datetime
     user: Optional[User] = None
 
