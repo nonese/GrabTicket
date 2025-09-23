@@ -10,6 +10,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+    jti: Optional[str] = None
 
 
 class UserBase(BaseModel):
