@@ -12,6 +12,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     energy_coins = Column(Integer, default=0)
+    current_token_jti = Column(String, nullable=True)
 
     orders = relationship("Order", back_populates="user")
 

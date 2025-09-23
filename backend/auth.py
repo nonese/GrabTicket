@@ -33,8 +33,9 @@ def decode_access_token(token: str) -> Optional[schemas.TokenData]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
-        if username is None:
+        jti: str | None = payload.get("jti")
+        if username is None or jti is None:
             return None
-        return schemas.TokenData(username=username)
+        return schemas.TokenData(username=username, jti=jti)
     except JWTError:
         return None

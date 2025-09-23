@@ -6,6 +6,7 @@ import shutil
 import json
 import io
 import zipfile
+import re
 from typing import Dict, Set
 from xml.sax.saxutils import escape
 
@@ -36,14 +37,24 @@ Base.metadata.create_all(bind=engine)
 # Ensure newly added columns exist for older SQLite databases
 if engine.dialect.name == "sqlite":
     with engine.begin() as conn:
-        existing_columns = {
+        event_columns = {
             row[1] for row in conn.execute(text("PRAGMA table_info(events)"))
         }
-        if "limit_one_ticket_per_user" not in existing_columns:
+        if "limit_one_ticket_per_user" not in event_columns:
             conn.execute(
                 text(
                     "ALTER TABLE events ADD COLUMN limit_one_ticket_per_user "
                     "BOOLEAN DEFAULT 0"
+                )
+            )
+
+        user_columns = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(users)"))
+        }
+        if "current_token_jti" not in user_columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN current_token_jti TEXT"
                 )
             )
 
@@ -397,13 +408,20 @@ async def _broadcast_seat_counts(event_id: int, db: Session | None = None) -> No
 
 def _get_user_by_token(token: str, db: Session) -> models.User | None:
     token_data = auth.decode_access_token(token)
-    if token_data is None or token_data.username is None:
+    if (
+        token_data is None
+        or token_data.username is None
+        or token_data.jti is None
+    ):
         return None
-    return (
+    user = (
         db.query(models.User)
         .filter(models.User.username == token_data.username)
         .first()
     )
+    if user is None or user.current_token_jti != token_data.jti:
+        return None
+    return user
 
 
 @app.websocket("/ws/events/{event_id}")
@@ -444,18 +462,29 @@ async def event_ws(websocket: WebSocket, event_id: int, token: str) -> None:
 # Dependency
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     token_data = auth.decode_access_token(token)
-    if token_data is None or token_data.username is None:
+    if (
+        token_data is None
+        or token_data.username is None
+        or token_data.jti is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的令牌"
         )
     user = db.query(models.User).filter(models.User.username == token_data.username).first()
     if user is None:
         raise HTTPException(status_code=400, detail="用户不存在")
+    if user.current_token_jti != token_data.jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态已过期，请重新登录",
+        )
     return user
 
 
 @app.post("/auth/register", response_model=schemas.User)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    if not re.fullmatch(r"[A-Za-z0-9]+", user.username):
+        raise HTTPException(status_code=400, detail="用户名只能包含字母和数字")
     existing = db.query(models.User).filter(models.User.username == user.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="用户名已被注册")
@@ -476,9 +505,13 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="用户名或密码错误")
+    jti = str(uuid.uuid4())
     access_token = auth.create_access_token(
-        data={"sub": user.username}, expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+        data={"sub": user.username, "jti": jti},
+        expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
+    user.current_token_jti = jti
+    db.commit()
     return schemas.Token(access_token=access_token)
 
 
